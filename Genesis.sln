@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Genesis.Net", "Genesis.Net\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Gensis.Sync", "Gensis.Sync\Gensis.Sync.csproj", "{3667A93E-F96E-4F5A-A484-9E875C88AB99}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Genesis.Console", "Genesis.Console\Genesis.Console.csproj", "{FB6A82C3-B75A-4536-BA16-3603EE876122}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{3667A93E-F96E-4F5A-A484-9E875C88AB99}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3667A93E-F96E-4F5A-A484-9E875C88AB99}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3667A93E-F96E-4F5A-A484-9E875C88AB99}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FB6A82C3-B75A-4536-BA16-3603EE876122}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FB6A82C3-B75A-4536-BA16-3603EE876122}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FB6A82C3-B75A-4536-BA16-3603EE876122}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FB6A82C3-B75A-4536-BA16-3603EE876122}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

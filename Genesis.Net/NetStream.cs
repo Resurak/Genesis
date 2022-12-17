@@ -13,7 +13,7 @@ namespace Genesis.Net
     {
         public NetStream(TcpClient client) : base(client.Client) 
         {
-            sizeBuffer = new byte[sizeof(long)];
+            sizeBuffer = new byte[sizeof(int)];
             dataBuffer = new byte[1024 * 1024];
             dataStream = new MemoryStream();
         }
@@ -35,7 +35,7 @@ namespace Genesis.Net
             {
                 Array.Clear(sizeBuffer);
                 Array.Clear(dataBuffer);
-                dataStream.Position = 0;
+                dataStream.SetLength(0);
 
                 var read = await ReadAsync(sizeBuffer);
                 if (read < 4)
@@ -43,7 +43,7 @@ namespace Genesis.Net
                     throw new ArgumentOutOfRangeException("Data read less than size of int, probably a connection error");
                 }
 
-                var size = BitConverter.ToInt64(sizeBuffer);
+                var size = BitConverter.ToInt32(sizeBuffer);
                 if (size == int.MinValue)
                 {
                     Log.Debug("Received disconnection code, closing stream");
@@ -56,7 +56,7 @@ namespace Genesis.Net
                     return new byte[0];
                 }
 
-                if (size > 1 << 32) // 4 gb
+                if (size > 1024 * 1024 * 4) // 4 mb
                 {
                     Log.Warning("Data to receive ({size}) is too much. Contact developer", size);
                     return new byte[0];
@@ -71,13 +71,19 @@ namespace Genesis.Net
                     current += read;
                 }
 
-                var decompressed = LZ4.Decompress(dataStream.GetBuffer());
+                Log.Information("received {@data}", dataStream.ToArray().Length);
+
+                var decompressed = LZ4.Decompress(dataStream.ToArray());
                 return decompressed;
             }
             catch (OperationCanceledException)
             {
                 Log.Debug("Read cancelled");
                 return new byte[0];
+            }
+            catch
+            {
+                throw;
             }
         }
 
@@ -91,7 +97,9 @@ namespace Genesis.Net
             try
             {
                 var compressed = LZ4.Compress(data);
-                var size = BitConverter.GetBytes(compressed.LongLength);
+                var size = BitConverter.GetBytes(compressed.Length);
+
+                Log.Information("sending {@data}", compressed.Length);
 
                 await WriteAsync(size);
                 await WriteAsync(compressed);
@@ -99,6 +107,10 @@ namespace Genesis.Net
             catch (OperationCanceledException)
             {
                 Log.Debug("Write cancelled");
+            }
+            catch
+            {
+                throw;
             }
         }
 
@@ -116,7 +128,7 @@ namespace Genesis.Net
         public async Task SendObject<T>(T obj) where T : class
         {
             var data = MsgPack.Serialize(obj);
-            await WriteAsync(data);
+            await SendAsync(data);
         }
 
         public new void Dispose()

@@ -34,7 +34,7 @@ namespace Genesis.Net
             Stream = new NetStream(Client);
         }
 
-        public async Task<T?> ReceiveObject<T>()
+        public async Task<T?> ReceiveObject<T>() where T : class
         {
             if (!Active)
             {
@@ -50,13 +50,13 @@ namespace Genesis.Net
 
             try
             {
-                return await ReceiveObject<T>();
+                return await Stream?.ReceiveObject<T>();
             }
             catch (Exception ex)
             {
                 if (ex is SocketException || ex is IOException || ex is ObjectDisposedException)
                 {
-                    Log.Warning("Client forced disconnection, disposing");
+                    Log.Warning(ex, "Client forced disconnection, disposing");
                     Stream?.Dispose();
                 }
                 else
@@ -68,7 +68,7 @@ namespace Genesis.Net
             }
         }
 
-        public async Task SendObject<T>(T obj)
+        public async Task SendObject<T>(T obj) where T : class
         {
             if (!Active)
             {
@@ -84,7 +84,7 @@ namespace Genesis.Net
 
             try
             {
-                await SendObject(obj);
+                await Stream?.SendObject(obj);
             }
             catch (Exception ex)
             {

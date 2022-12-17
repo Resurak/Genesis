@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Genesis.Commons\Genesis.Commons.csproj" />
+    <ProjectReference Include="..\Gensis.Sync\Gensis.Sync.csproj" />
   </ItemGroup>
 
 </Project>

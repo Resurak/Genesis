@@ -114,21 +114,14 @@ namespace Genesis.Net
             }
         }
 
-        public async Task<T?> ReceiveObject<T>() where T : class
+        public async Task SendFile(string path)
         {
-            var data = await ReceiveAsync();
-            if (data.Length == 0)
-            {
-                return default(T);
-            }
 
-            return MsgPack.Deserialize<T>(data);
         }
 
-        public async Task SendObject<T>(T obj) where T : class
+        public async Task ReceiveFile(string path, long size)
         {
-            var data = MsgPack.Serialize(obj);
-            await SendAsync(data);
+
         }
 
         public new void Dispose()

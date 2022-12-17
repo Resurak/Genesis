@@ -20,10 +20,9 @@ namespace Gensis.Sync
         public List<InfoShare> ShareList { get; set; }
         public List<VirtualStorage> StorageList { get; set; }
 
-        public async Task StartServer()
+        public new async Task StartServer()
         {
-            Start();
-            await WaitClient();
+            await StartAndWaitClient();
             await Handshake();
         }
 

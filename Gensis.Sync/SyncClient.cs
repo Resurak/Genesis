@@ -19,32 +19,29 @@ namespace Gensis.Sync
 
         public async Task<List<InfoShare>?> GetShares()
         {
-            try
+            await SendRequest(RequestCode.GetAvailableShares);
+            if (await GetResponse() is Response response)
             {
-                await SendRequest(RequestCode.GetAvailableShares);
-                if (await GetResponse() is Response response)
+                if (response.Code != ResponseCode.Accepted)
                 {
-                    if (response.Code != ResponseCode.Accepted)
-                    {
-                        Log.Warning("Response got: {code}", response.Code);
-                    }
-                    else
-                    {
-                        return response.DeserializeParam<List<InfoShare>>();
-                    }
+                    Log.Warning("Response got: {code}", response.Code);
                 }
                 else
                 {
-                    Log.Warning("Failed to receive response...");
+                    return response.DeserializeParam<List<InfoShare>>();
                 }
-
-                return null;
             }
-            catch (Exception ex)
+            else
             {
-                Log.Warning(ex, "Exception thrown while getting available shares");
-                return null;
+                Log.Warning("Failed to receive response...");
             }
+
+            return null;
+        }
+
+        public async Task SyncShare(InfoShare share)
+        {
+            await SendRequest(RequestCode.SyncShare, share.StorageID);
         }
 
         async Task SendRequest(RequestCode code, Guid token = default)

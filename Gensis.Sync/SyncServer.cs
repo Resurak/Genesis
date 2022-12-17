@@ -104,6 +104,23 @@ namespace Gensis.Sync
             ShareList.Add(share);
         }
 
+        async Task SyncShare(Guid token)
+        {
+            var storage = StorageList.FirstOrDefault(x => x.ID == token);
+            if (storage == null)
+            {
+                Log.Warning("Requested storage is invalid, no such storage with id {id}", token);
+                await SendResponse(ResponseCode.Error_BadToken);
+            }
+            else
+            {
+                Log.Information("Starting storage sync. ID: {id}", token);
+                Log.Information("Sending all storage info");
+
+                await SendResponse(ResponseCode.Accepted, storage);
+            }
+        }
+
         async Task Handshake()
         {
             if (await GetRequest() is Request request && request.Code == RequestCode.Connection)

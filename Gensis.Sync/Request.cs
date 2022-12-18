@@ -47,6 +47,7 @@ namespace Gensis.Sync
         GetAvailableShares,
         GetAvailableVirtualStorage,
 
-        SyncShare
+        SyncShare,
+        FileSync,
     }
 }

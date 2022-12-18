@@ -94,7 +94,11 @@ namespace Genesis.Net
             }
             catch (Exception ex)
             {
-                if (ex is SocketException || ex is IOException || ex is ObjectDisposedException)
+                if (ex is OperationCanceledException)
+                {
+                    Log.Debug("Operation cancelled");
+                }
+                else if (ex is SocketException || ex is IOException || ex is ObjectDisposedException)
                 {
                     Log.Warning(ex, "Client forced disconnection, closing");
                     Disconnect();
@@ -123,7 +127,11 @@ namespace Genesis.Net
             }
             catch (Exception ex)
             {
-                if (ex is SocketException || ex is IOException || ex is ObjectDisposedException)
+                if (ex is OperationCanceledException)
+                {
+                    Log.Debug("Operation cancelled");
+                }
+                else if (ex is SocketException || ex is IOException || ex is ObjectDisposedException)
                 {
                     Log.Warning(ex, "Client forced disconnection, closing");
                     Disconnect();

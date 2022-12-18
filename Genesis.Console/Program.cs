@@ -11,10 +11,10 @@ if (sel == "1")
     var server = new SyncServer();
     Log.Information("Creating storage and shares");
 
-    await server.CreateStorage("test1", @"C:\Users\chiar\Desktop\root");
+    await server.CreateStorage("test1", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "root"));
     server.CreateShare(server.StorageList[0], "test1");
 
-    await server.CreateStorage("test2", @"C:\Users\chiar\Desktop\UnityModManager");
+    await server.CreateStorage("test1", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "test"));
     server.CreateShare(server.StorageList[1], "test2");
 
     Log.Information("Starting server and waiting client...");

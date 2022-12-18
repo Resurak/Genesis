@@ -31,60 +31,46 @@ namespace Genesis.Net
                 return new byte[0];
             }
 
-            try
+            Array.Clear(sizeBuffer);
+            Array.Clear(dataBuffer);
+            dataStream.SetLength(0);
+
+            var read = await ReadAsync(sizeBuffer);
+            if (read < 4)
             {
-                Array.Clear(sizeBuffer);
-                Array.Clear(dataBuffer);
-                dataStream.SetLength(0);
-
-                var read = await ReadAsync(sizeBuffer);
-                if (read < 4)
-                {
-                    throw new ArgumentOutOfRangeException("Data read less than size of int, probably a connection error");
-                }
-
-                var size = BitConverter.ToInt32(sizeBuffer);
-                if (size == int.MinValue)
-                {
-                    Log.Debug("Received disconnection code, closing stream");
-                    return new byte[0];
-                }
-
-                if (size <= 0)
-                {
-                    Log.Debug("Data to read less or equal 0, probably a connection error");
-                    return new byte[0];
-                }
-
-                if (size > 1024 * 1024 * 4) // 4 mb
-                {
-                    Log.Warning("Data to receive ({size}) is too much. Contact developer", size);
-                    return new byte[0];
-                }
-
-                var current = 0;
-                while (current < size)
-                {
-                    read = await ReadAsync(dataBuffer);
-                    await dataStream.WriteAsync(dataBuffer, 0, read);
-
-                    current += read;
-                }
-
-                Log.Information("received {@data}", dataStream.ToArray().Length);
-
-                var decompressed = LZ4.Decompress(dataStream.ToArray());
-                return decompressed;
+                throw new ArgumentOutOfRangeException("Data read less than size of int, probably a connection error");
             }
-            catch (OperationCanceledException)
+
+            var size = BitConverter.ToInt32(sizeBuffer);
+            if (size == int.MinValue)
             {
-                Log.Debug("Read cancelled");
+                Log.Debug("Received disconnection code, closing stream");
                 return new byte[0];
             }
-            catch
+
+            if (size <= 0)
             {
-                throw;
+                Log.Debug("Data to read less or equal 0, probably a connection error");
+                return new byte[0];
             }
+
+            if (size > 1024 * 1024 * 4) // 4 mb
+            {
+                Log.Warning("Data to receive ({size}) is too much. Contact developer", size);
+                return new byte[0];
+            }
+
+            var current = 0;
+            while (current < size)
+            {
+                read = await ReadAsync(dataBuffer);
+                await dataStream.WriteAsync(dataBuffer, 0, read);
+
+                current += read;
+            }
+
+            var decompressed = LZ4.Decompress(dataStream.ToArray());
+            return decompressed;
         }
 
         public async Task SendAsync(byte[] data, CancellationToken? token = null)
@@ -94,34 +80,43 @@ namespace Genesis.Net
                 return;
             }
 
-            try
-            {
-                var compressed = LZ4.Compress(data);
-                var size = BitConverter.GetBytes(compressed.Length);
+            var compressed = LZ4.Compress(data);
+            var size = BitConverter.GetBytes(compressed.Length);
 
-                Log.Information("sending {@data}", compressed.Length);
-
-                await WriteAsync(size);
-                await WriteAsync(compressed);
-            }
-            catch (OperationCanceledException)
-            {
-                Log.Debug("Write cancelled");
-            }
-            catch
-            {
-                throw;
-            }
+            await WriteAsync(size);
+            await WriteAsync(compressed);
         }
 
         public async Task SendFile(string path)
         {
+            var read = 0;
+            var current = 0L;
 
+            using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None, 1024 * 1024);
+            do
+            {
+                read = await fileStream.ReadAsync(dataBuffer, 0, dataBuffer.Length);
+                await WriteAsync(dataBuffer, 0, read);
+
+                current += read;
+            }
+            while (current < fileStream.Length);
         }
 
-        public async Task ReceiveFile(string path, long size)
+        public async Task ReceiveFile(string path, long size, bool overwrite = true)
         {
+            var read = 0;
+            var current = 0L;
 
+            using var fileStream = new FileStream(path, overwrite ? FileMode.Create : FileMode.CreateNew, FileAccess.Write, FileShare.None, 1024 * 1024);
+            do
+            {
+                read = await ReadAsync(dataBuffer, 0, dataBuffer.Length);
+                await fileStream.WriteAsync(dataBuffer, 0, read);
+
+                current += read;
+            }
+            while (current < size);
         }
 
         public new void Dispose()

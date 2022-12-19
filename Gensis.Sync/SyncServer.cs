@@ -168,7 +168,7 @@ namespace Gensis.Sync
                 }
                 else
                 {
-                    await SendObject(new Response(code, MsgPack.Serialize(obj)));
+                    await SendObject(new Response(code, MessagePackUtils.Serialize(obj)));
                 }
             }
             catch (Exception ex)

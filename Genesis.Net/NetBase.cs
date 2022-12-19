@@ -90,7 +90,7 @@ namespace Genesis.Net
             try
             {
                 var data = await Stream.ReceiveAsync();
-                return MsgPack.Deserialize<T>(data);
+                return MessagePackUtils.Deserialize<T>(data);
             }
             catch (Exception ex)
             {
@@ -122,7 +122,7 @@ namespace Genesis.Net
 
             try
             {
-                var data = MsgPack.Serialize(obj);
+                var data = MessagePackUtils.Serialize(obj);
                 await Stream.SendAsync(data);
             }
             catch (Exception ex)

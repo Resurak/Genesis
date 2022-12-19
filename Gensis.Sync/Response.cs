@@ -35,7 +35,7 @@ namespace Gensis.Sync
         {
             try
             {
-                return MsgPack.Deserialize<T>(Param);
+                return MessagePackUtils.Deserialize<T>(Param);
             }
             catch (Exception ex)
             {

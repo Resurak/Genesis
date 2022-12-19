@@ -3,13 +3,15 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.1.32421.90
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Genesis.Commons", "Genesis.Commons\Genesis.Commons.csproj", "{DFAABA21-B915-4F43-9EB6-C91512C3D3CD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Genesis.Commons", "Genesis.Commons\Genesis.Commons.csproj", "{DFAABA21-B915-4F43-9EB6-C91512C3D3CD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Genesis.Net", "Genesis.Net\Genesis.Net.csproj", "{0B6E4905-FEF2-41CE-A6A5-F3592E1E5F5C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Genesis.Net", "Genesis.Net\Genesis.Net.csproj", "{0B6E4905-FEF2-41CE-A6A5-F3592E1E5F5C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Gensis.Sync", "Gensis.Sync\Gensis.Sync.csproj", "{3667A93E-F96E-4F5A-A484-9E875C88AB99}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Gensis.Sync", "Gensis.Sync\Gensis.Sync.csproj", "{3667A93E-F96E-4F5A-A484-9E875C88AB99}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Genesis.Console", "Genesis.Console\Genesis.Console.csproj", "{FB6A82C3-B75A-4536-BA16-3603EE876122}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Genesis.Console", "Genesis.Console\Genesis.Console.csproj", "{FB6A82C3-B75A-4536-BA16-3603EE876122}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Genesis.Networking", "Genesis.Networking\Genesis.Networking.csproj", "{EF10561E-A8E9-4C92-87EF-112FF7A38335}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{FB6A82C3-B75A-4536-BA16-3603EE876122}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FB6A82C3-B75A-4536-BA16-3603EE876122}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FB6A82C3-B75A-4536-BA16-3603EE876122}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EF10561E-A8E9-4C92-87EF-112FF7A38335}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EF10561E-A8E9-4C92-87EF-112FF7A38335}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EF10561E-A8E9-4C92-87EF-112FF7A38335}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EF10561E-A8E9-4C92-87EF-112FF7A38335}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

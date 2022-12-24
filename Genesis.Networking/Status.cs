@@ -8,17 +8,34 @@ namespace Genesis.Networking
 {
     public class Status
     {
-        public Status(ErrorCode errorCode = ErrorCode.NoError, Exception? exception = null)
+        public Status(StatusCode errorCode = StatusCode.Success, Exception? exception = null)
         {
-            this.ErrorCode = errorCode;
+            this.Code = errorCode;
             this.Exception = exception;
         }
 
-        public bool Success => this.ErrorCode == ErrorCode.NoError;
+        public bool OK => this.Code == StatusCode.Success;
 
-        public ErrorCode ErrorCode { get; set; }
+        public StatusCode Code { get; set; }
         public Exception? Exception { get; set; }
 
-        public static Status NoError => new Status(ErrorCode.NoError, null);
+        public static Status Success => new Status(StatusCode.Success, null);
+    }
+
+    public enum StatusCode
+    {
+        Success,
+
+        InvalidOperation,
+
+        DataError,
+        ConnectionError,
+
+        UnknownException,
+        OperationCancelled,
+
+        InvalidPacket,
+        SerializationError,
+        DeserializationError,
     }
 }

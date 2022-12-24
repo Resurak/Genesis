@@ -7,7 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Serilog" Version="2.12.0" />
+    <ProjectReference Include="..\Genesis.Commons\Genesis.Commons.csproj" />
+    <ProjectReference Include="..\Genesis.Networking\Genesis.Networking.csproj" />
   </ItemGroup>
 
 </Project>

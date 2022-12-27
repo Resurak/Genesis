@@ -6,8 +6,9 @@ using System.Threading.Tasks;
 
 namespace Genesis.Sync_Old
 {
-    public class SyncClient
+    public class Handshake
     {
-
+        public DateTime SentDate { get; set; }
+        public DateTime ReceivedDate { get; set; }
     }
 }

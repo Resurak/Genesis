@@ -10,10 +10,7 @@ namespace Genesis.Net
 {
     public class TcpServer : TcpListener
     {
-        public TcpServer(int port) : base(IPAddress.Any, port)
-        {
-
-        }
+        public TcpServer(int port = 6969) : base(IPAddress.Any, port) { }
 
         public new bool Active => base.Active;
     }

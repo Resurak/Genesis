@@ -9,7 +9,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Genesis.Console", "Genesis.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Genesis.Networking", "Genesis.Networking\Genesis.Networking.csproj", "{EF10561E-A8E9-4C92-87EF-112FF7A38335}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Genesis.Sync", "Genesis.Sync\Genesis.Sync.csproj", "{5B85A568-4AEE-4CF5-860E-24495FFA1F60}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Genesis.Sync_Old", "Genesis.Sync\Genesis.Sync_Old.csproj", "{5B85A568-4AEE-4CF5-860E-24495FFA1F60}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Genesis.Net", "Genesis.Net\Genesis.Net.csproj", "{2C04AC72-404C-4D90-A880-7F27A93096FB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{5B85A568-4AEE-4CF5-860E-24495FFA1F60}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5B85A568-4AEE-4CF5-860E-24495FFA1F60}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5B85A568-4AEE-4CF5-860E-24495FFA1F60}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2C04AC72-404C-4D90-A880-7F27A93096FB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2C04AC72-404C-4D90-A880-7F27A93096FB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2C04AC72-404C-4D90-A880-7F27A93096FB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2C04AC72-404C-4D90-A880-7F27A93096FB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Genesis.Sync
+namespace Genesis.Sync_Old
 {
     public class Storage
     {
@@ -14,7 +14,7 @@ namespace Genesis.Sync
             ID = Guid.NewGuid();
             Name = string.Empty;
             Path = string.Empty;
-            Files = new ItemList<FileData>();
+            Files = new List<FileData>();
         }
 
         public Storage(string path) : this()
@@ -31,7 +31,10 @@ namespace Genesis.Sync
         public string Name { get; set; }
         public string Path { get; set; }
 
-        public ItemList<FileData> Files { get; set; }
+        public FileData? this[Guid id] =>
+            Files?.FirstOrDefault(x => x.ID == id) ?? null;
+
+        public List<FileData> Files { get; set; }
 
         public static async Task<Storage> Create(string path)
         {
@@ -42,7 +45,7 @@ namespace Genesis.Sync
                 foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
                 {
                     var data = new FileData(file, path);
-                    storage.Files.Add(Guid.NewGuid(), data);
+                    storage.Files.Add(data);
                 }
             });
 

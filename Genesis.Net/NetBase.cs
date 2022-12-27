@@ -1,9 +1,7 @@
 ﻿using Genesis.Commons;
-using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,171 +10,110 @@ namespace Genesis.Net
 {
     public class NetBase : IDisposable
     {
-        protected TcpServer? Server;
+        public NetBase()
+        {
+            this.dataStream = new MemoryStream();
+
+            this.dataBuffer = new byte[1024 * 4];
+            this.sizeBuffer = new byte[sizeof(int)];
+        }
+
         protected TcpClient? Client;
-        protected NetStream? Stream;
+        protected NetworkStream? Stream;
 
-        public bool Connected => Stream != null && Client != null && Client.Connected;
+        int size;
+        byte[] dataBuffer;
+        byte[] sizeBuffer;
+        MemoryStream dataStream;
 
-        protected async Task ConnectClient(string address, int port)
+        public bool Connected => Stream != null && Client != null;
+
+        public async Task<byte[]> ReceiveData()
         {
-            if (Connected)
-            {
-                Log.Warning("Can't connected: already connected, disconnect first");
-                return;
-            }
-
             try
             {
-                var ip = IPAddress.Parse(address);
-                var endPoint = new IPEndPoint(ip, port);
+                ResetBuffers();
 
-                Client = new TcpClient();
-                await Client.ConnectAsync(endPoint);
+                await Stream.ReadExactlyAsync(sizeBuffer);
+                size = sizeBuffer.ToInt();
 
-                Stream = new NetStream(Client);
+                if (size <= 0)
+                {
+                    throw new InvalidDataException();
+                }
+
+                var diff = 0;
+                var current = 0;
+                while (current < size)
+                {
+                    diff = current + dataBuffer.Length > size ? size - current : dataBuffer.Length;
+
+                    await Stream.ReadExactlyAsync(dataBuffer, 0, diff);
+                    await dataStream.WriteAsync(dataBuffer, 0, diff);
+
+                    current += diff;
+                }
+
+                return dataStream.ToArray();
             }
             catch (Exception ex)
             {
-                Log.Warning(ex, "Exception thrown while connecting to server");
+                if (ex is OperationCanceledException or InvalidDataException or IndexOutOfRangeException)
+                {
+                    return new byte[0];
+                }
+                else if (ex is SocketException or IOException or EndOfStreamException or ObjectDisposedException or ArgumentNullException)
+                {
+                    throw new NotConnectedException();
+                }
+                else
+                {
+                    throw;
+                }
             }
         }
 
-        protected void StartServer()
+        public async Task SendData(byte[] data)
         {
-            if (Server is not null && Server.Active)
-            {
-                Log.Warning("Can't start server: already started");
-                return;
-            }
-
-            Server = new TcpServer(6969);
-            Server.Start();
-        }
-
-        protected async Task WaitClient()
-        {
-            if (Server is null || !Server.Active)
-            {
-                Log.Warning("Can't wait client: server not started");
-                return;
-            }
-
-            if (Connected)
-            {
-                Log.Warning("Can't wait client: already connected, disconnect first");
-                return;
-            }
-
             try
             {
-                Client = await Server.AcceptTcpClientAsync();
-                Stream = new NetStream(Client);
-            }
-            catch (Exception ex)
-            {
-                Log.Warning(ex, "Exception thrown while waiting client");
-            }
-        }
-
-        public async Task<T?> ReceiveObject<T>() where T : class
-        {
-            if (!Connected)
-            {
-                Log.Warning("Can't receive object: not connected");
-                return null;
-            }
-
-            try
-            {
-                var data = await Stream.ReceiveAsync();
-                return MessagePackUtils.Deserialize<T>(data);
+                await Stream.WriteAsync(data.Length.ToBytes());
+                await Stream.WriteAsync(data);
             }
             catch (Exception ex)
             {
                 if (ex is OperationCanceledException)
                 {
-                    Log.Debug("Operation cancelled");
+                    return;
                 }
-                else if (ex is SocketException || ex is IOException || ex is ObjectDisposedException)
+                else if (ex is SocketException or IOException or EndOfStreamException or ObjectDisposedException or ArgumentNullException)
                 {
-                    Log.Warning(ex, "Client forced disconnection, closing");
-                    Disconnect();
+                    throw new NotConnectedException();
                 }
                 else
                 {
-                    Log.Warning(ex, "Exception thrown while receiving object");
-                }
-
-                return null;
-            }
-        }
-
-        public async Task SendObject<T>(T obj) where T : class
-        {
-            if (!Connected)
-            {
-                Log.Warning("Can't send object: not connected");
-                return;
-            }
-
-            try
-            {
-                var data = MessagePackUtils.Serialize(obj);
-                await Stream.SendAsync(data);
-            }
-            catch (Exception ex)
-            {
-                if (ex is OperationCanceledException)
-                {
-                    Log.Debug("Operation cancelled");
-                }
-                else if (ex is SocketException || ex is IOException || ex is ObjectDisposedException)
-                {
-                    Log.Warning(ex, "Client forced disconnection, closing");
-                    Disconnect();
-                }
-                else
-                {
-                    Log.Warning(ex, "Exception thrown while receiving object");
+                    throw;
                 }
             }
         }
 
-        public async Task SendFile(string path)
+        void ResetBuffers()
         {
-            if (!Connected)
-            {
-                Log.Warning("Can't send file: not connected");
-                return;
-            }
-
-            await Stream.SendFile(path);
-        }
-
-        public async Task ReceiveFile(string path, long size)
-        {
-            if (!Connected)
-            {
-                Log.Warning("Can't receive file: not connected");
-                return;
-            }
-
-            await Stream.ReceiveFile(path, size);
+            Array.Clear(dataBuffer, 0, dataBuffer.Length);
+            Array.Clear(sizeBuffer, 0, sizeBuffer.Length);
+            dataStream.SetLength(0);
         }
 
         public void Disconnect()
         {
+            ResetBuffers();
             Stream?.Dispose();
             Client?.Dispose();
-
-            Stream = null;
-            Client = null;
         }
 
         public void Dispose()
         {
-            throw new NotImplementedException();
+            Disconnect();
         }
     }
 }

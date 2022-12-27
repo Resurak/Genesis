@@ -1,5 +1,4 @@
-﻿using Serilog;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -11,14 +10,21 @@ namespace Genesis.Net
 {
     public class NetClient : NetBase
     {
-        public NetClient()
+        public async Task Connect(string address, int port = 6969)
         {
+            try
+            {
+                base.Client = new TcpClient();
+                var ip = IPAddress.Parse(address);
+                var endPoint = new IPEndPoint(ip, port);
 
-        }
-
-        public async Task Connect(string address)
-        {
-            await ConnectClient(address, 6969);
+                await base.Client.ConnectAsync(endPoint);
+                base.Stream = base.Client.GetStream();
+            }
+            catch
+            {
+                throw new ConnectionException();
+            }
         }
     }
 }

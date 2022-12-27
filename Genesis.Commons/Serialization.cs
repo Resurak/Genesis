@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Genesis.Commons
 {
-    public class MessagePackUtils
+    public class Serialization
     {
         public static byte[] Serialize<T>(T obj, bool throwException = true)
         {
@@ -33,6 +33,25 @@ namespace Genesis.Commons
             try
             {
                 return MessagePackSerializer.Typeless.Deserialize(data) as T;
+            }
+            catch
+            {
+                if (throwException)
+                {
+                    throw;
+                }
+                else
+                {
+                    return null;
+                }
+            }
+        }
+
+        public static object? DeserializeObject(byte[] data, bool throwException = true)
+        {
+            try
+            {
+                return Deserialize<object>(data, throwException);
             }
             catch
             {

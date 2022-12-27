@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Serilog;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -12,6 +13,14 @@ namespace Genesis.Net
     {
         public async Task Connect(string address, int port = 6969)
         {
+            Log.Information("Starting tcp connection to {ip}", address);
+
+            if (Connected)
+            {
+                Log.Warning("Already connected to a server, disconnect first");
+                return;
+            }
+
             try
             {
                 base.Client = new TcpClient();
@@ -20,10 +29,13 @@ namespace Genesis.Net
 
                 await base.Client.ConnectAsync(endPoint);
                 base.Stream = base.Client.GetStream();
+
+                Log.Information("Connected to server successfully");
             }
-            catch
+            catch (Exception ex) 
             {
-                throw new ConnectionException();
+                Log.Warning(ex, "Error while connecting to server");
+                Dispose();
             }
         }
     }

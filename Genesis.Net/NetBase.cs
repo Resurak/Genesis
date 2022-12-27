@@ -1,4 +1,5 @@
 ﻿using Genesis.Commons;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -30,6 +31,12 @@ namespace Genesis.Net
 
         public async Task<byte[]> ReceiveData()
         {
+            if (!Connected)
+            {
+                Log.Warning("Tried to receive data but client not connected");
+                return new byte[0];
+            }
+
             try
             {
                 ResetBuffers();
@@ -54,47 +61,61 @@ namespace Genesis.Net
                     current += diff;
                 }
 
-                return dataStream.ToArray();
-            }
-            catch (Exception ex)
-            {
-                if (ex is OperationCanceledException or InvalidDataException or IndexOutOfRangeException)
-                {
-                    return new byte[0];
-                }
-                else if (ex is SocketException or IOException or EndOfStreamException or ObjectDisposedException or ArgumentNullException)
-                {
-                    throw new NotConnectedException();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-        }
-
-        public async Task SendData(byte[] data)
-        {
-            try
-            {
-                await Stream.WriteAsync(data.Length.ToBytes());
-                await Stream.WriteAsync(data);
+                return LZ4.Decompress(dataStream.ToArray());
             }
             catch (Exception ex)
             {
                 if (ex is OperationCanceledException)
                 {
-                    return;
-                }
-                else if (ex is SocketException or IOException or EndOfStreamException or ObjectDisposedException or ArgumentNullException)
-                {
-                    throw new NotConnectedException();
+                    Log.Debug("Data read was cancelled or was invalid size");
                 }
                 else
                 {
-                    throw;
+                    Log.Debug(ex, "Exception while reading data, disconnecting");
+                    Disconnect();
+                }
+
+                return new byte[0];
+            }
+        }
+
+        public async Task SendData(byte[] data)
+        {
+            if (!Connected)
+            {
+                Log.Warning("Tried to send data but client not connected");
+                return; 
+            }
+
+            try
+            {
+                var compressed = LZ4.Compress(data);
+
+                await Stream.WriteAsync(compressed.Length.ToBytes());
+                await Stream.WriteAsync(compressed);
+            }
+            catch (Exception ex)
+            {
+                if (ex is OperationCanceledException)
+                {
+                    Log.Debug("Data write was cancelled");
+                }
+                else
+                {
+                    Log.Debug(ex, "Exception while writing data, disconnecting");
+                    Disconnect();
                 }
             }
+        }
+
+        public async Task ReceiveFile(string path, long size, bool overwrite = true)
+        {
+
+        }
+
+        public async Task SendFile()
+        {
+
         }
 
         void ResetBuffers()
@@ -107,8 +128,17 @@ namespace Genesis.Net
         public void Disconnect()
         {
             ResetBuffers();
-            Stream?.Dispose();
-            Client?.Dispose();
+
+            if (Connected)
+            {
+                Stream?.Dispose();
+                Client?.Dispose();
+
+                Stream = null;
+                Client = null;
+
+                Log.Information("Client disconnected");
+            }
         }
 
         public void Dispose()

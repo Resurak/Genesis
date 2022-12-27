@@ -29,7 +29,7 @@ namespace Genesis.Net
 
         public bool Connected => Stream != null && Client != null;
 
-        public async Task<byte[]> ReceiveData()
+        protected async Task<byte[]> ReceiveData()
         {
             if (!Connected)
             {
@@ -61,7 +61,7 @@ namespace Genesis.Net
                     current += diff;
                 }
 
-                return LZ4.Decompress(dataStream.ToArray());
+                return Utils.Decompress(dataStream.ToArray());
             }
             catch (Exception ex)
             {
@@ -79,7 +79,7 @@ namespace Genesis.Net
             }
         }
 
-        public async Task SendData(byte[] data)
+        protected async Task SendData(byte[] data)
         {
             if (!Connected)
             {
@@ -89,7 +89,7 @@ namespace Genesis.Net
 
             try
             {
-                var compressed = LZ4.Compress(data);
+                var compressed = Utils.Compress(data);
 
                 await Stream.WriteAsync(compressed.Length.ToBytes());
                 await Stream.WriteAsync(compressed);
@@ -108,12 +108,12 @@ namespace Genesis.Net
             }
         }
 
-        public async Task ReceiveFile(string path, long size, bool overwrite = true)
+        protected async Task ReceiveFile(string path, long size, bool overwrite = true)
         {
 
         }
 
-        public async Task SendFile()
+        protected async Task SendFile()
         {
 
         }
@@ -136,8 +136,6 @@ namespace Genesis.Net
 
                 Stream = null;
                 Client = null;
-
-                Log.Information("Client disconnected");
             }
         }
 

@@ -15,8 +15,6 @@ namespace Genesis.Net
 
         public void Start()
         {
-            Log.Information("Starting NetServer");
-
             if (Active)
             {
                 Log.Warning("Server already active, returning");
@@ -29,20 +27,10 @@ namespace Genesis.Net
 
         public async Task WaitClient()
         {
-            Log.Information("Accepting new TcpClient");
-
-            if (Connected)
-            {
-                Log.Warning("A client is already connected, disconnect first");
-                return;
-            }
-
             try
             {
                 base.Client = await Server.AcceptTcpClientAsync();
                 base.Stream = base.Client.GetStream();
-
-                Log.Information("Client connected");
             }
             catch (Exception ex)
             {

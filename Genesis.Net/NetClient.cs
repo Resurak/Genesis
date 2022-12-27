@@ -13,24 +13,15 @@ namespace Genesis.Net
     {
         public async Task Connect(string address, int port = 6969)
         {
-            Log.Information("Starting tcp connection to {ip}", address);
-
-            if (Connected)
-            {
-                Log.Warning("Already connected to a server, disconnect first");
-                return;
-            }
-
             try
             {
                 base.Client = new TcpClient();
+
                 var ip = IPAddress.Parse(address);
                 var endPoint = new IPEndPoint(ip, port);
 
                 await base.Client.ConnectAsync(endPoint);
                 base.Stream = base.Client.GetStream();
-
-                Log.Information("Connected to server successfully");
             }
             catch (Exception ex) 
             {

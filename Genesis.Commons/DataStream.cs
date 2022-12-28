@@ -93,12 +93,26 @@ namespace Genesis.Commons
 
         public async Task ReceiveFile(string path, long size, bool overwrite = true)
         {
+            var read = 0;
+            using var fileStream = new FileStream(path, overwrite ? FileMode.Create : FileMode.CreateNew, FileAccess.Write, FileShare.None, 1024 * 4);
 
+            while (fileStream.Position < size)
+            {
+                read = await networkStream.ReadAsync(dataBuffer, 0, dataBuffer.Length);
+                await fileStream.WriteAsync(dataBuffer, 0, read);
+            }
         }
 
         public async Task SendFile(string path)
         {
+            var read = 0;
+            using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None, 1024 * 4);
 
+            while (fileStream.Position < fileStream.Length)
+            {
+                read = await fileStream.ReadAsync(dataBuffer, 0, dataBuffer.Length);
+                await networkStream.WriteAsync(dataBuffer, 0, read);
+            }
         }
 
         void ResetBuffers()

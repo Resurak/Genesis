@@ -43,6 +43,11 @@ namespace Genesis.Sync
             return await GetObject<DataList<DataStorage>>();
         }
 
+        public async Task SyncShare(DataShare localShare, DataShare serverShare)
+        {
+
+        }
+
         async Task<SyncResponse> GetResponse() =>
             await ReceiveResponse() ?? new SyncResponse(ResponseCode.Invalid);
 

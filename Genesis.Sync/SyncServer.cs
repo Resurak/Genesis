@@ -14,14 +14,10 @@ namespace Genesis.Sync
     {
         public SyncServer()
         {
-            this.ShareList = new DataList<DataShare>();
-            this.StorageList = new DataList<DataStorage>();
+
         }
 
         TcpServer server;
-
-        public DataList<DataShare> ShareList { get; set; }
-        public DataList<DataStorage> StorageList { get; set; }
 
         public event UpdateEventHandler? ServerStarted;
         public event UpdateEventHandler? ServerStopped;

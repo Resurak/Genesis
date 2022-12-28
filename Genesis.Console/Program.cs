@@ -1,7 +1,11 @@
 ﻿using Genesis.Commons;
 using Serilog;
 
-Logging.Start();
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Debug()
+    .WriteTo.Console()
+    .CreateLogger();
+
 Log.Information("1 for server, 2 for client");
 
 var sel = Console.ReadLine();

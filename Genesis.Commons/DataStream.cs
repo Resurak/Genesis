@@ -20,11 +20,6 @@ namespace Genesis.Commons
             this.sizeBuffer = new byte[sizeof(int)];
         }
 
-        public event UpdateEventHandler? Disconnected;
-
-        public event DataChangeEventHandler? DataSent;
-        public event DataChangeEventHandler? DataReceived;
-
         int size;
         byte[] dataBuffer;
         byte[] sizeBuffer;
@@ -32,7 +27,7 @@ namespace Genesis.Commons
         MemoryStream dataStream;
         NetworkStream networkStream;
 
-        protected async Task<byte[]> ReceiveData(CancellationToken token = default)
+        public async Task<byte[]> ReceiveData(CancellationToken token = default)
         {
             try
             {
@@ -58,27 +53,23 @@ namespace Genesis.Commons
                     current += diff;
                 }
 
-                DataReceived?.Invoke((int)dataStream.Length);
-
                 return Utils.Decompress(dataStream.ToArray());
             }
             catch (Exception ex)
             {
                 if (ex is OperationCanceledException)
                 {
-                    Log.Debug("Data read was cancelled or was invalid size");
+                    Log.Debug("Data read was cancelled");
+                    return new byte[0];
                 }
                 else
                 {
-                    Log.Debug(ex, "Exception while reading data, disconnecting");
-                    Disconnected?.Invoke();
+                    throw;
                 }
-
-                return new byte[0];
             }
         }
 
-        protected async Task SendData(byte[] data, CancellationToken token = default)
+        public async Task SendData(byte[] data, CancellationToken token = default)
         {
             try
             {
@@ -86,8 +77,6 @@ namespace Genesis.Commons
 
                 await networkStream.WriteAsync(compressed.Length.ToBytes(), token);
                 await networkStream.WriteAsync(compressed, token);
-
-                DataSent?.Invoke(compressed.Length);
             }
             catch (Exception ex)
             {
@@ -97,18 +86,17 @@ namespace Genesis.Commons
                 }
                 else
                 {
-                    Log.Debug(ex, "Exception while writing data, disconnecting");
-                    Disconnected?.Invoke();
+                    throw;
                 }
             }
         }
 
-        protected async Task ReceiveFile(string path, long size, bool overwrite = true)
+        public async Task ReceiveFile(string path, long size, bool overwrite = true)
         {
 
         }
 
-        protected async Task SendFile(string path)
+        public async Task SendFile(string path)
         {
 
         }

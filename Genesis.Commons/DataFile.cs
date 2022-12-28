@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Genesis.Commons
 {
-    public class DataFile
+    public class DataFile : IData
     {
         public DataFile() 
         {

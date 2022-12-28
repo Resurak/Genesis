@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Genesis.Commons
 {
-    public class DataStorage
+    public class DataStorage : IData
     {
         public DataStorage()
         {

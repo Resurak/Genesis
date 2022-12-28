@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Genesis.Commons
 {
-    public class DataShare
+    public class DataShare : IData
     {
         public Guid ID { get; set; } 
         public string? Name { get; set; }

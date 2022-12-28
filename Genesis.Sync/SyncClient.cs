@@ -1,5 +1,4 @@
 ﻿using Genesis.Commons;
-using Genesis.Net;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -11,16 +10,8 @@ using System.Threading.Tasks;
 
 namespace Genesis.Sync
 {
-    public sealed class SyncClient
+    public sealed class SyncClient : ConnectionBase
     {
-        TcpClient client;
-        DataStream stream;
-
-        public event UpdateEventHandler? Connected;
-        public event UpdateEventHandler? Disconnected;
-
-        bool _connected;
-
         public async Task ConnectLan(string address = "127.0.0.1", int port = 6969)
         {
             try
@@ -32,18 +23,12 @@ namespace Genesis.Sync
                 await client.ConnectAsync(endPoint);
 
                 stream = new DataStream(client);
-                Connected?.Invoke();
+                OnConnected();
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Error while connecting to server");
+                OnError(ex);
             }
-        }
-
-        public void OnConnected()
-        {
-            _connected = true;
-            Connected?.Invoke();
         }
     }
 }

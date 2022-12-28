@@ -7,9 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Genesis.Commons", "Genesis.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Genesis.Console", "Genesis.Console\Genesis.Console.csproj", "{FB6A82C3-B75A-4536-BA16-3603EE876122}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Genesis.Net", "Genesis.Net\Genesis.Net.csproj", "{2C04AC72-404C-4D90-A880-7F27A93096FB}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Genesis.Sync", "Genesis.Sync\Genesis.Sync.csproj", "{1D871F73-3AC0-44EF-8E1B-F63BCDFB03EE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Genesis.Sync", "Genesis.Sync\Genesis.Sync.csproj", "{1D871F73-3AC0-44EF-8E1B-F63BCDFB03EE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -25,10 +23,6 @@ Global
 		{FB6A82C3-B75A-4536-BA16-3603EE876122}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FB6A82C3-B75A-4536-BA16-3603EE876122}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FB6A82C3-B75A-4536-BA16-3603EE876122}.Release|Any CPU.Build.0 = Release|Any CPU
-		{2C04AC72-404C-4D90-A880-7F27A93096FB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{2C04AC72-404C-4D90-A880-7F27A93096FB}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{2C04AC72-404C-4D90-A880-7F27A93096FB}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{2C04AC72-404C-4D90-A880-7F27A93096FB}.Release|Any CPU.Build.0 = Release|Any CPU
 		{1D871F73-3AC0-44EF-8E1B-F63BCDFB03EE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{1D871F73-3AC0-44EF-8E1B-F63BCDFB03EE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1D871F73-3AC0-44EF-8E1B-F63BCDFB03EE}.Release|Any CPU.ActiveCfg = Release|Any CPU

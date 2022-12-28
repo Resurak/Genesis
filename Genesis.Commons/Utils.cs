@@ -30,10 +30,10 @@ namespace Genesis.Commons
         public static byte[] Serialize<T>(T obj, bool throwException = true) =>
             MessagePackSerializer.Typeless.Serialize(obj);
 
-        public static T? Deserialize<T>(byte[] data, bool throwException = false) where T : class =>
+        public static T? TypeDeserialize<T>(byte[] data, bool throwException = false) where T : class =>
             MessagePackSerializer.Typeless.Deserialize(data) as T;
 
-        public static object? DeserializeObject(byte[] data, bool throwException = true) =>
-            Deserialize<object>(data, throwException);
+        public static object? DynamicDeserialize(byte[] data, bool throwException = true) =>
+            MessagePackSerializer.Typeless.Deserialize(data);
     }
 }

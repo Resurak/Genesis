@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Genesis.Net\Genesis.Net.csproj" />
+    <ProjectReference Include="..\Genesis.Commons\Genesis.Commons.csproj" />
   </ItemGroup>
 
 </Project>

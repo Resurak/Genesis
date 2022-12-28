@@ -1,4 +1,5 @@
 ﻿using Genesis.Commons;
+using Genesis.Sync;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -11,71 +12,68 @@ Log.Information("1 for server, 2 for client");
 var sel = Console.ReadLine();
 if (sel == "1")
 {
-    //var server = new SyncServer();
-    //Log.Information("Creating storage and shares");
+    var server = new SyncServer();
 
-    //await server.CreateStorage("test1", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "root"));
-    //server.CreateShare(server.StorageList[0], "test1");
+    server.SocketError += Server_SocketError;
+    server.ServerStarted += Server_ServerStarted;
+    server.ServerStopped += Server_ServerStopped;
+    server.ClientConnected += Server_ClientConnected;
+    server.ClientDisconnected += Server_ClientDisconnected;
 
-    //await server.CreateStorage("test1", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "test"));
-    //server.CreateShare(server.StorageList[1], "test2");
+    await server.CreateStorageAndShare(@"C:\Users\chiar\Desktop\root");
+    await server.CreateStorageAndShare(@"C:\Users\chiar\Desktop\UnityModManager");
 
-    //Log.Information("Starting server and waiting client...");
-    //await server.StartServer();
+    await server.StartService();
+    await server.AcceptRequests();
 
-    //while (server.Connected)
-    //{
-    //    Log.Information("Waiting new request");
-    //    await server.ProcessRequest();
-    //}
-
-    //Log.Information("Client no more connected, closing server");
-    //server.Stop();
+    server.StopService();
+    Console.ReadLine();
 }
 else if (sel == "2")
 {
-    //var client = new SyncClient();
+    var client = new SyncClient();
 
-    //Log.Information("Connecting to local server...");
-    //await client.Connect(); // test
+    client.SocketError += Server_SocketError;
+    client.ClientConnected += Server_ClientConnected;
+    client.ClientDisconnected += Server_ClientDisconnected;
 
-    //if (!client.Connected)
-    //{
-    //    Log.Warning("Something occured while connecting to server...");
-    //    Console.ReadLine();
+    await client.ConnectLan();
 
-    //    Environment.Exit(0);
-    //}
+    var shares = await client.GetShares();
+    //Log.Information("Shares: {@shares}", shares);
 
-    //Log.Information("Connected to server successfully, getting share list 3 times and then closing connection");
+    var storages = await client.GetStorage();
+    //Log.Information("Storage: {@storage}", storages);
 
-    //for (int i = 0; i < 3; i++)
-    //{
-    //    var shares = await client.GetShares();
-    //    Log.Information("Shares:\n{@share}", shares);
-    //}
+    await client.Disconnect();
+    Console.ReadLine();
+}
 
-    //await client.Disconnect();
-    //Log.Information("Disconnected");
+void Server_ServerStopped(object? obj = null)
+{
+    Log.Information("Server stopped");
+}
 
+void Server_ServerStarted(object? obj = null)
+{
+    Log.Information("Server started and waiting");
+}
+
+void Server_SocketError(object? obj = null)
+{
+    var ex = obj as Exception;
+    Log.Warning(ex, "Error thrown");
+}
+
+void Server_ClientDisconnected(object? obj = null)
+{
+    Log.Information("Client disconnected");
+}
+
+void Server_ClientConnected(object? obj = null)
+{
+    Log.Information("Client connected");
 }
 
 Console.ReadLine();
 
-public class Test
-{
-    public Test()
-    {
-        this.Name = "Default";
-        this.Description = "Default";
-    }
-
-    public Test(string name, string description)
-    {
-        this.Name = name;
-        this.Description = description;
-    }
-
-    public string Name { get; set; }
-    public string Description { get; set; }
-}

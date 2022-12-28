@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace Genesis.Sync
 {
-    public sealed class SyncClient : ConnectionBase
+    public sealed class SyncClient : CommonSync
     {
         public async Task ConnectLan(string address = "127.0.0.1", int port = 6969)
         {
@@ -29,6 +29,47 @@ namespace Genesis.Sync
             {
                 OnError(ex);
             }
+        }
+
+        public async Task<DataList<DataShare>?> GetShares()
+        {
+            await SendRequest(RequestCode.ShareList);
+            return await GetObject<DataList<DataShare>>();
+        }
+
+        public async Task<DataList<DataStorage>?> GetStorage()
+        {
+            await SendRequest(RequestCode.StorageList);
+            return await GetObject<DataList<DataStorage>>();
+        }
+
+        async Task<SyncResponse> GetResponse() =>
+            await ReceiveResponse() ?? new SyncResponse(ResponseCode.Invalid);
+
+        async Task<T?> GetObject<T>() where T : class
+        {
+            var response = await GetResponse();
+            if (!response.IsSuccess)
+            {
+                OnError("Request not accepted. Response: " + response.Code);
+                return null;
+            }
+
+            if (response.ParamValue is T param)
+            {
+                return param;
+            }
+            else
+            {
+                OnError("Received invalid list");
+                return null;
+            }
+        } 
+
+        public new async Task Disconnect()
+        {
+            await SendRequest(RequestCode.Disconnection);
+            base.Disconnect();
         }
     }
 }

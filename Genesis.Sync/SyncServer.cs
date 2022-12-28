@@ -4,12 +4,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
+using System.Reflection.PortableExecutable;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Genesis.Sync
 {
-    public sealed class SyncServer : ConnectionBase
+    public sealed class SyncServer : CommonSync
     {
         public SyncServer()
         {
@@ -22,6 +23,9 @@ namespace Genesis.Sync
         public DataList<DataShare> ShareList { get; set; }
         public DataList<DataStorage> StorageList { get; set; }
 
+        public event UpdateEventHandler? ServerStarted;
+        public event UpdateEventHandler? ServerStopped;
+
         public async Task StartService()
         {
             try
@@ -29,8 +33,12 @@ namespace Genesis.Sync
                 server = new TcpServer();
                 server.Start();
 
+                ServerStarted?.Invoke();
+
                 client = await server.AcceptTcpClientAsync();
                 stream = new DataStream(client);
+
+                OnConnected();
             }
             catch (Exception ex)
             {
@@ -38,115 +46,114 @@ namespace Genesis.Sync
             }
         }
 
-        //async Task AcceptRequests()
-        //{
-        //    while (Connected)
-        //    {
-        //        var packet = await ReceivePacket();
-        //        if (packet is not null)
-        //        {
-        //            await ProcessPacket(packet);
-        //        }
-        //        else
-        //        {
-        //            if (!Connected)
-        //            {
-        //                break;
-        //            }
+        public void StopService()
+        {
+            if (!server.Active)
+            {
+                return;
+            }
 
-        //            Log.Warning("Received packet was null, maybe operation was cancelled");
-        //        }
-        //    }
-        //}
+            Disconnect();
 
-        //async Task ProcessPacket(SyncPacket packet)
-        //{
-        //    if (packet.Type != PacketType.Request)
-        //    {
-        //        Log.Warning("Received invalid packet type");
-        //        return;
-        //    }
+            server.Stop();
+            ServerStopped?.Invoke();
+        }
 
-        //    switch (packet.Request)
-        //    {
-        //        case RequestCode.ShareList:
-        //            await SendResponse(ResponseCode.Accepted, ShareList);
-        //            break;
-        //        case RequestCode.ShareInfo:
-        //            var share = ShareList.FirstOrDefault(x => x.ID == (packet.DataID ?? Guid.Empty));
-        //            if (share != null)
-        //            {
-        //                await SendResponse(ResponseCode.Accepted, share);
-        //            }
-        //            else
-        //            {
-        //                await SendResponse(ResponseCode.Error_InvalidToken);
-        //            }
-        //            break;
-        //        case RequestCode.StorageList:
-        //            await SendResponse(ResponseCode.Accepted, StorageList);
-        //            break;
-        //        case RequestCode.StorageInfo:
-        //            var storage = StorageList.FirstOrDefault(x => x.ID == (packet.DataID ?? Guid.Empty));
-        //            if (storage != null)
-        //            {
-        //                await SendResponse(ResponseCode.Accepted, storage);
-        //            }
-        //            else
-        //            {
-        //                await SendResponse(ResponseCode.Error_InvalidToken);
-        //            }
-        //            break;
-        //        case RequestCode.Sync_File:
-        //            break;
-        //        case RequestCode.Sync_Storage:
-        //            break;
-        //    }
-        //}
+        public async Task AcceptRequests()
+        {
+            while (Connected)
+            {
+                var request = await ReceiveRequest();
+                await ProcessRequest(request);
+            }
+        }
 
-        //async Task<SyncPacket?> ReceivePacket()
-        //{
-        //    var data = await ReceiveData();
-        //    if (data.Length == 0)
-        //    {
-        //        if (!Connected)
-        //        {
-        //            Log.Warning("Client forced disconnection");
-        //            return null;
-        //        }
+        async Task ProcessRequest(SyncRequest? request)
+        {
+            if (request == null)
+            {
+                OnError("Received request was null or invalid");
+                return;
+            }
 
-        //        return null;
-        //    }
+            Log.Information("Received new {code} request", request.Code);
+            switch (request.Code)
+            {
+                case RequestCode.ShareList:
+                    await SendResponse(ResponseCode.Accepted, ShareList);
+                    break;
+                case RequestCode.ShareInfo:
+                    await SendShare(request);
+                    break;
+                case RequestCode.StorageList:
+                    await SendResponse(ResponseCode.Accepted, StorageList);
+                    break;
+                case RequestCode.StorageInfo:
+                    await SendStorage(request);
+                    break;
+                case RequestCode.Sync_File:
+                    break;
+                case RequestCode.Sync_Storage:
+                    break;
+                case RequestCode.Disconnection:
+                    base.Disconnect();
+                    break;
+            }
+        }
 
-        //    return Utils.TypeDeserialize<SyncPacket>(data);
-        //}
+        async Task SendShare(BasePacket packet)
+        {
+            if (packet.ParamValue is Guid id)
+            {
+                var share = ShareList[id];
+                if (share != null)
+                {
+                    await SendResponse(ResponseCode.Accepted, share);
+                }
+                else
+                {
+                    await SendResponse(ResponseCode.Error_InvalidToken);
+                }
+            } 
+            else
+            {
+                await SendResponse(ResponseCode.Error_InvalidParam);
+            }
+        }
 
-        //async Task SendResponse(ResponseCode code)
-        //{
-        //    var packet = new SyncPacket();
+        async Task SendStorage(BasePacket packet)
+        {
+            if (packet.ParamValue is Guid id)
+            {
+                var share = StorageList[id];
+                if (share != null)
+                {
+                    await SendResponse(ResponseCode.Accepted, share);
+                }
+                else
+                {
+                    await SendResponse(ResponseCode.Error_InvalidToken);
+                }
+            }
+            else
+            {
+                await SendResponse(ResponseCode.Error_InvalidParam);
+            }
+        }
 
-        //    packet.Type = PacketType.Response;
-        //    packet.Response = code;
+        public async Task CreateStorageAndShare(string root)
+        {
+            var storage = await DataStorage.Create(root);
+            StorageList.Add(storage);
 
-        //    var data = Utils.Serialize(packet);
-        //    await base.SendData(data);
-        //}
+            var share = new DataShare { ID = Guid.NewGuid(), Name = "testing " + new Random().Next(1, 10000), StorageID = storage.ID, StorageRoot = storage.Root };
+            ShareList.Add(share);
+        }
 
-        //async Task SendResponse<T>(ResponseCode code, T? obj = null) where T : class
-        //{
-        //    var packet = new SyncPacket();
-
-        //    packet.Type = PacketType.Response;
-        //    packet.Response = code;
-
-        //    if (obj != null)
-        //    {
-        //        packet.DataType = typeof(T);
-        //        packet.DataValue = Utils.Serialize(obj);
-        //    }
-
-        //    var data = Utils.Serialize(packet);
-        //    await base.SendData(data);
-        //}
+        public void CreateShare(DataStorage storage)
+        {
+            var share = new DataShare { ID = Guid.NewGuid(), Name = "testing " + new Random().Next(1, 10000), StorageID = storage.ID, StorageRoot = storage.Root };
+            ShareList.Add(share);
+        }
     }
 }

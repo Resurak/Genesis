@@ -9,6 +9,9 @@ using System.Threading.Tasks;
 
 namespace Genesis.Commons
 {
+    public delegate void UpdateEventHandler(object? obj = null);
+    public delegate void DataChangeEventHandler(int count = 0);
+
     public class Utils
     {
         public static byte[] Compress(byte[] data) =>
@@ -24,61 +27,13 @@ namespace Genesis.Commons
             return md5.ComputeHash(file);
         }
 
-        public static byte[] Serialize<T>(T obj, bool throwException = true)
-        {
-            try
-            {
-                return MessagePackSerializer.Typeless.Serialize(obj);
-            }
-            catch
-            {
-                if (throwException)
-                {
-                    throw;
-                }
-                else
-                {
-                    return new byte[0];
-                }
-            }
-        }
+        public static byte[] Serialize<T>(T obj, bool throwException = true) =>
+            MessagePackSerializer.Typeless.Serialize(obj);
 
-        public static T? Deserialize<T>(byte[] data, bool throwException = false) where T : class
-        {
-            try
-            {
-                return MessagePackSerializer.Typeless.Deserialize(data) as T;
-            }
-            catch
-            {
-                if (throwException)
-                {
-                    throw;
-                }
-                else
-                {
-                    return null;
-                }
-            }
-        }
+        public static T? Deserialize<T>(byte[] data, bool throwException = false) where T : class =>
+            MessagePackSerializer.Typeless.Deserialize(data) as T;
 
-        public static object? DeserializeObject(byte[] data, bool throwException = true)
-        {
-            try
-            {
-                return Deserialize<object>(data, throwException);
-            }
-            catch
-            {
-                if (throwException)
-                {
-                    throw;
-                }
-                else
-                {
-                    return null;
-                }
-            }
-        }
+        public static object? DeserializeObject(byte[] data, bool throwException = true) =>
+            Deserialize<object>(data, throwException);
     }
 }

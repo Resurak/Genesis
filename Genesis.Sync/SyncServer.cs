@@ -4,28 +4,28 @@ using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Genesis.Sync
 {
-    public sealed class SyncServer : NetServer
+    public sealed class SyncServer
     {
+        TcpClient client;
+        TcpServer server;
+        DataStream stream;
+
         public List<DataShare> ShareList { get; set; }
         public List<DataStorage> StorageList { get; set; }
 
         public async Task StartService()
         {
-            Log.Information("Starting SyncServer");
+            server = new TcpServer();
+            server.Start();
 
-            base.Start();
-            Log.Information("Server started");
-
-            await base.WaitClient();
-            Log.Information("Client connected. Accepting requests");
-
-            await AcceptRequests();
-            Log.Information("Client disconnected");
+            client = await server.AcceptTcpClientAsync();
+            stream = new DataStream(client);
         }
 
         async Task AcceptRequests()

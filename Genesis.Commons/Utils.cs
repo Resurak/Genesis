@@ -12,7 +12,7 @@ namespace Genesis.Commons
     public delegate void UpdateEventHandler(object? obj = null);
     public delegate void DataChangeEventHandler(int count = 0);
 
-    public class Utils
+    public static class Utils
     {
         public static byte[] Compress(byte[] data) =>
             LZ4Pickler.Pickle(data);
@@ -35,5 +35,20 @@ namespace Genesis.Commons
 
         public static object? DynamicDeserialize(byte[] data, bool throwException = true) =>
             MessagePackSerializer.Typeless.Deserialize(data);
+
+        public static bool IsEmpty(this string? str) => 
+            string.IsNullOrEmpty(str);
+
+        public static int ToInt(this byte[] data) =>
+            BitConverter.ToInt32(data);
+
+        public static long ToLong(this byte[] data) =>
+            BitConverter.ToInt64(data);
+
+        public static byte[] ToBytes(this int num) =>
+            BitConverter.GetBytes(num);
+
+        public static byte[] ToBytes(this long num) =>
+            BitConverter.GetBytes(num);
     }
 }

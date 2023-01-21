@@ -142,13 +142,13 @@ namespace Genesis.Sync
             var storage = await DataStorage.Create(root);
             StorageList.Add(storage);
 
-            var share = new DataShare { ID = Guid.NewGuid(), Name = "testing " + new Random().Next(1, 10000), StorageID = storage.ID, StorageRoot = storage.Root };
+            var share = new Share { ID = Guid.NewGuid(), Name = "testing " + new Random().Next(1, 10000), StorageID = storage.ID, StorageRoot = storage.Root };
             ShareList.Add(share);
         }
 
         public void CreateShare(DataStorage storage)
         {
-            var share = new DataShare { ID = Guid.NewGuid(), Name = "testing " + new Random().Next(1, 10000), StorageID = storage.ID, StorageRoot = storage.Root };
+            var share = new Share { ID = Guid.NewGuid(), Name = "testing " + new Random().Next(1, 10000), StorageID = storage.ID, StorageRoot = storage.Root };
             ShareList.Add(share);
         }
     }

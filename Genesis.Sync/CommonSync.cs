@@ -13,11 +13,11 @@ namespace Genesis.Sync
     {
         public CommonSync()
         {
-            this.ShareList = new DataList<DataShare>();
+            this.ShareList = new DataList<Share>();
             this.StorageList = new DataList<DataStorage>();
         }
 
-        public DataList<DataShare> ShareList { get; set; }
+        public DataList<Share> ShareList { get; set; }
         public DataList<DataStorage> StorageList { get; set; }
 
         public async Task SendRequest(RequestCode code)
@@ -65,13 +65,13 @@ namespace Genesis.Sync
             var storage = await DataStorage.Create(root);
             StorageList.Add(storage);
 
-            var share = new DataShare { ID = Guid.NewGuid(), Name = "testing " + new Random().Next(1, 10000), StorageID = storage.ID, StorageRoot = storage.Root };
+            var share = new Share { ID = Guid.NewGuid(), Name = "testing " + new Random().Next(1, 10000), StorageID = storage.ID, StorageRoot = storage.Root };
             ShareList.Add(share);
         }
 
         public void CreateShare(DataStorage storage)
         {
-            var share = new DataShare { ID = Guid.NewGuid(), Name = "testing " + new Random().Next(1, 10000), StorageID = storage.ID, StorageRoot = storage.Root };
+            var share = new Share { ID = Guid.NewGuid(), Name = "testing " + new Random().Next(1, 10000), StorageID = storage.ID, StorageRoot = storage.Root };
             ShareList.Add(share);
         }
     }

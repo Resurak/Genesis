@@ -31,10 +31,10 @@ namespace Genesis.Sync
             }
         }
 
-        public async Task<DataList<DataShare>?> GetShares()
+        public async Task<DataList<Share>?> GetShares()
         {
             await SendRequest(RequestCode.ShareList);
-            return await GetObject<DataList<DataShare>>();
+            return await GetObject<DataList<Share>>();
         }
 
         public async Task<DataList<DataStorage>?> GetStorage()
@@ -43,7 +43,7 @@ namespace Genesis.Sync
             return await GetObject<DataList<DataStorage>>();
         }
 
-        public async Task SyncShare(DataShare localShare, DataShare serverShare)
+        public async Task SyncShare(Share localShare, Share serverShare)
         {
 
         }

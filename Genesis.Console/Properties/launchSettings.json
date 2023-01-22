@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Genesis.Console": {
+      "commandName": "Project",
+      "commandLineArgs": "client"
+    }
+  }
+}

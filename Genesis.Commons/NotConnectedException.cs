@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 
 namespace Genesis.Commons
 {
-    public interface IData
+    public class NotConnectedException : Exception
     {
-        public Guid ID { get; set; }
+        public NotConnectedException() : base("No connection between client/server") { }
     }
 }

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Genesis.Sync
 {
-    public static class Extensions
+    internal class DisconnectRequest
     {
     }
 }

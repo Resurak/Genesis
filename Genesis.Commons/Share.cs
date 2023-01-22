@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Serilog;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.AccessControl;
@@ -7,101 +8,173 @@ using System.Threading.Tasks;
 
 namespace Genesis.Commons
 {
-    public class Share : IData
+    public class Share
     {
         public Share()
         {
             ID = Guid.NewGuid();
-            Name = "Placeholder";
+            PathList = new List<PathData>();
 
-            Folders = new DataList<FolderData>();
+            Name = "Placeholder";
+            RootFolder = string.Empty;
+
         }
 
         public Share(string path) : this()
         {
-            RootPath = path;
+            RootFolder = path;
         }
 
         public Guid ID { get; set; }
-        public string? Name { get; set; }
-        public string? RootPath { get; set; }
+        public string Name { get; set; }
+        public string RootFolder { get; set; }
 
-        public DataList<FolderData> Folders { get; set; }
+        public List<PathData> PathList { get; set; }
+
+        bool _canSync;
+        Guid _sourceShareID;
+
+        public PathData? this[PathData data] =>
+            PathList.FirstOrDefault(x => x.Path == data.Path);
 
         public async Task Update()
         {
-            if (RootPath.IsEmpty())
+            if (RootFolder.IsEmpty())
             {
                 throw new InvalidOperationException("Can't update share if root path is not setted");
             }
 
-            if (!Directory.Exists(RootPath))
+            if (!Directory.Exists(RootFolder))
             {
-                throw new DirectoryNotFoundException(RootPath);
+                throw new DirectoryNotFoundException(RootFolder);
             }
 
-            var rootFolder = new FolderData(RootPath, RootPath);
-            Folders.Add(rootFolder);
+            PathList.Clear();
 
             await Task.Run(() =>
             {
-                foreach (var folder in Directory.EnumerateDirectories(RootPath, "*", SearchOption.AllDirectories))
+                foreach (var path in GetPaths(RootFolder))
                 {
-                    var data = new FolderData(RootPath, folder);
-                    Folders.Add(data);
+                    PathList.Add(path);
                 }
             });
         }
 
-        public IEnumerable<FileData> EnumerateDifferentFiles(Share share)
+        IEnumerable<PathData> GetPaths(string path)
         {
-            foreach (var folder in share.Folders)
+            foreach (var file in Directory.EnumerateFiles(path))
             {
-                // check if there is local folder
-                var localFolder = Folders.FirstOrDefault(x => x.Path == folder.Path);
+                var data = PathData.FileData(file, RootFolder);
+                yield return data;
+            }
 
-                if (localFolder == null)
+            foreach (var dir in Directory.EnumerateDirectories(path))
+            {
+                var data = PathData.FolderData(dir, RootFolder);
+                yield return data;
+
+                foreach (var sub in GetPaths(dir))
                 {
-                    // no local folder, add all files
-                    foreach (var file in folder.Files)
-                    {
-                        yield return file;
-                    }
+                    yield return sub;
+                }
+            }
+        }
+
+        public void PrepareShare(Share sourceShare)
+        {
+            foreach (var path in sourceShare.PathList)
+            {
+                var local = this[path];
+                if (local == null)
+                {
+                    path.Flag_Sync = true;
+                    PathList.Add(path);
                 }
                 else
                 {
-                    // check each file in folder
-                    foreach (var file in folder.Files)
+                    local.ID = path.ID;
+                    if (local.Hash.Length > 0 && !local.Hash.SequenceEqual(path.Hash))
                     {
-                        var localFile = localFolder.Files.FirstOrDefault(x => x.Path == file.Path);
-                        if (localFile == null)
-                        {
-                            // no local file, add
-                            yield return file;
-                        }
-                        else
-                        {
-                            // check if file hash is the same
-                            if (localFile.Hash.Length > 0 && !localFile.Hash.SequenceEqual(file.Hash))
-                            {
-                                yield return file;
-                                continue;
-                            }
+                        local.Flag_Sync = true;
+                        continue;
+                    }
 
-                            // check if local file is older
-                            if (localFile.LastWriteTime < file.LastWriteTime)
-                            {
-                                yield return file;
-                                continue;
-                            }
+                    if (local.DateModified < path.DateModified)
+                    {
+                        local.Flag_Sync = true;
+                        continue;
+                    }
 
-                            // check if local file size is different
-                            if (localFile.Size != file.Size)
+                    if (local.Size < path.Size)
+                    {
+                        local.Flag_Sync = true;
+                        continue;
+                    }
+                }
+            }
+
+            foreach (var path in PathList)
+            {
+                var source = sourceShare[path];
+                if (source == null)
+                {
+                    path.Flag_Delete = true;
+                }
+            }
+
+            _canSync = true;
+            _sourceShareID = sourceShare.ID;
+        }
+
+        public async Task SyncLocal(Share share)
+        {
+            if (!_canSync || _sourceShareID != share.ID)
+            {
+                PrepareShare(share);
+            }
+
+            foreach (var path in PathList)
+            {
+                var sourcePath = Path.Combine(share.RootFolder, path.Path);
+                var destinationPath = Path.Combine(RootFolder, path.Path);
+
+                if (path.Flag_Sync)
+                {
+                    switch (path.Type)
+                    {
+                        case PathType.File:
+                        {
+                            using var sourceStream = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.None);
+                            using var destinationStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None);
+
+                            await sourceStream.CopyToAsync(destinationStream);
+
+                            Log.Information("Synced {file}", destinationPath);
+                        }
+                            break;
+                        case PathType.Folder:
+                        {
+                            if (!Directory.Exists(destinationPath))
                             {
-                                yield return file;
-                                continue;
+                                Directory.CreateDirectory(destinationPath);
                             }
                         }
+                            break;
+                    }
+                }
+
+                if (path.Flag_Delete)
+                {
+                    switch (path.Type)
+                    {
+                        case PathType.File:
+                            if (File.Exists(destinationPath))
+                                File.Delete(destinationPath);
+                            break;
+                        case PathType.Folder:
+                            if (Directory.Exists(destinationPath))
+                                Directory.Delete(destinationPath, true);
+                            break;
                     }
                 }
             }

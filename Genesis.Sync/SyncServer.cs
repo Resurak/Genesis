@@ -4,152 +4,110 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
-using System.Reflection.PortableExecutable;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Genesis.Sync
 {
-    public sealed class SyncServer : CommonSync
+    public class SyncServer : TcpServer
     {
-        public SyncServer()
-        {
+        public SyncServer() : base() { }
 
+        TcpClient? client;
+        NetStream? stream;
+
+        public bool Connected => client != null && stream != null;
+        public List<Share> LocalShares { get; set; } = new List<Share>();
+
+        public async Task CreateShare(string root)
+        {
+            var share = new Share(root);
+            await share.Update();
+
+            Log.Information("Created share with id {id} and root {root}", share.ID, share.RootFolder);
+            LocalShares.Add(share);
         }
 
-        TcpServer server;
-
-        public event UpdateEventHandler? ServerStarted;
-        public event UpdateEventHandler? ServerStopped;
-
-        public async Task StartService()
+        public async Task WaitClient()
         {
-            try
-            {
-                server = new TcpServer();
-                server.Start();
+            client = await AcceptTcpClientAsync();
+            stream = new NetStream(client);
 
-                ServerStarted?.Invoke();
-
-                client = await server.AcceptTcpClientAsync();
-                stream = new DataStream(client);
-
-                OnConnected();
-            }
-            catch (Exception ex)
-            {
-                OnError(ex);
-            }
+            Log.Information("Client connected, sending shares");
+            await stream.SendObject(LocalShares);
         }
 
-        public void StopService()
-        {
-            if (!server.Active)
-            {
-                return;
-            }
-
-            Disconnect();
-
-            server.Stop();
-            ServerStopped?.Invoke();
-        }
-
-        public async Task AcceptRequests()
+        public async Task ReceiveRequests()
         {
             while (Connected)
             {
-                var request = await ReceiveRequest();
-                await ProcessRequest(request);
+                var obj = await stream.ReceiveObject();
+                if (obj is FileData data)
+                {
+                    await ProcessFileRequest(data);
+                    continue;
+                }
+                
+                if (obj is Guid id && id == Utils.DisconnectToken)
+                {
+                    Disconnect();
+                    continue;
+                }
+
+                Log.Information("Unknonw request, skipping");
             }
+
+            Disconnect();
         }
 
-        async Task ProcessRequest(SyncRequest? request)
+        async Task ProcessFileRequest(FileData data)
         {
-            if (request == null)
+            var share = LocalShares.FirstOrDefault(x => x.ID == data.ShareID);
+            if (share == null)
             {
-                OnError("Received request was null or invalid");
+                Log.Warning("Invalid share id provided, skipping");
+
+                await stream.SendObject("Invalid share id provided");
                 return;
             }
 
-            Log.Information("Received new {code} request", request.Code);
-            switch (request.Code)
+            var file = share.PathList.FirstOrDefault(x => x.ID == data.FileID);
+            if (file == null)
             {
-                case RequestCode.ShareList:
-                    await SendResponse(ResponseCode.Accepted, ShareList);
-                    break;
-                case RequestCode.ShareInfo:
-                    await SendShare(request);
-                    break;
-                case RequestCode.StorageList:
-                    await SendResponse(ResponseCode.Accepted, StorageList);
-                    break;
-                case RequestCode.StorageInfo:
-                    await SendStorage(request);
-                    break;
-                case RequestCode.Sync_File:
-                    break;
-                case RequestCode.Sync_Storage:
-                    break;
-                case RequestCode.Disconnection:
-                    base.Disconnect();
-                    break;
+                Log.Warning("Invalid file id provided, skipping");
+
+                await stream.SendObject("Invalid file id provided");
+                return;
             }
+
+            if (file.Type == PathType.Folder)
+            {
+                Log.Warning("File requested is a folder, skipping");
+
+                await stream.SendObject("File requested is a folder");
+                return;
+            }
+
+            Log.Information("Client requested {file}, sending {num} bytes", file.AbsolutePath(share.RootFolder), file.Size);
+
+            await stream.SendObject(Utils.AcceptedToken);
+            await stream.SendFile(file.AbsolutePath(share.RootFolder));
         }
 
-        async Task SendShare(BasePacket packet)
+        public void Disconnect()
         {
-            if (packet.ParamValue is Guid id)
+            if (!Connected)
             {
-                var share = ShareList[id];
-                if (share != null)
-                {
-                    await SendResponse(ResponseCode.Accepted, share);
-                }
-                else
-                {
-                    await SendResponse(ResponseCode.Error_InvalidToken);
-                }
-            } 
-            else
-            {
-                await SendResponse(ResponseCode.Error_InvalidParam);
+                return;
             }
-        }
 
-        async Task SendStorage(BasePacket packet)
-        {
-            if (packet.ParamValue is Guid id)
-            {
-                var share = StorageList[id];
-                if (share != null)
-                {
-                    await SendResponse(ResponseCode.Accepted, share);
-                }
-                else
-                {
-                    await SendResponse(ResponseCode.Error_InvalidToken);
-                }
-            }
-            else
-            {
-                await SendResponse(ResponseCode.Error_InvalidParam);
-            }
-        }
+            stream?.Dispose();
+            client?.Dispose();
 
-        public async Task CreateStorageAndShare(string root)
-        {
-            var storage = await DataStorage.Create(root);
-            StorageList.Add(storage);
+            stream = null;
+            client = null;
 
-            var share = new Share { ID = Guid.NewGuid(), Name = "testing " + new Random().Next(1, 10000), StorageID = storage.ID, StorageRoot = storage.Root };
-            ShareList.Add(share);
-        }
-
-        public void CreateShare(DataStorage storage)
-        {
-            var share = new Share { ID = Guid.NewGuid(), Name = "testing " + new Random().Next(1, 10000), StorageID = storage.ID, StorageRoot = storage.Root };
-            ShareList.Add(share);
+            Log.Information("Client disconnected");
         }
     }
 }

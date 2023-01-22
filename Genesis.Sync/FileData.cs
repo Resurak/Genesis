@@ -8,6 +8,12 @@ namespace Genesis.Sync
 {
     public class FileData
     {
+        public FileData(Guid fileID, Guid shareID)
+        {
+            this.FileID = fileID;
+            this.ShareID = shareID;
+        }
+
         public Guid FileID { get; set; }
         public Guid ShareID { get; set; }
     }

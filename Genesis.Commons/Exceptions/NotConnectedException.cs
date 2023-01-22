@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Genesis.Commons
+namespace Genesis.Commons.Exceptions
 {
     public class NotConnectedException : Exception
     {

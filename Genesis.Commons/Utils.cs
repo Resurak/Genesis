@@ -1,4 +1,5 @@
-﻿using K4os.Compression.LZ4;
+﻿using Genesis.Commons.Exceptions;
+using K4os.Compression.LZ4;
 using MessagePack;
 using System;
 using System.Collections.Generic;
@@ -10,8 +11,6 @@ using System.Threading.Tasks;
 namespace Genesis.Commons
 {
     public delegate void UpdateEventHandler(object? obj = null);
-    public delegate void DataChangeEventHandler(int count = 0);
-
     public delegate void ProgressEventHandler(NetProgress progress);
 
     public static class Utils

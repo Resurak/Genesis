@@ -9,105 +9,147 @@ using System.Threading.Tasks;
 
 namespace Genesis.Sync
 {
-    public class SyncServer : TcpServer
+    public class SyncServer : BaseSync
     {
-        public SyncServer() : base() { }
+        TcpServer? Server;
+        TcpClient? Client;
+        NetStream? NetStream;
 
-        TcpClient? client;
-        NetStream? stream;
+        public event UpdateEventHandler? Started;
+        public event UpdateEventHandler? Stopped;
 
-        public bool Connected => client != null && stream != null;
-        public List<Share> LocalShares { get; set; } = new List<Share>();
+        public event UpdateEventHandler? ClientConnected;
+        public event UpdateEventHandler? ClientDisconnected;
 
-        public async Task CreateShare(string root)
+        public bool IsStarted => Server != null && Server.Active;
+        public bool IsConnected => Client != null && NetStream != null && NetStream.CanStream;
+
+        public void Start()
         {
-            var share = new Share(root);
-            await share.Update();
+            if (IsStarted)
+            {
+                throw new InvalidOperationException("Server already started");
+            }
 
-            Log.Information("Created share with id {id} and root {root}", share.ID, share.RootFolder);
-            LocalShares.Add(share);
+            Server = new TcpServer();
+            Server.Start();
+
+            Started?.Invoke();
+        }
+
+        public void Stop()
+        {
+            if (!IsStarted)
+            {
+                return;
+            }
+
+            Server.Stop();
+            Server = null;
+
+            Stopped?.Invoke();
         }
 
         public async Task WaitClient()
         {
-            client = await AcceptTcpClientAsync();
-            stream = new NetStream(client);
+            if (IsConnected)
+            {
+                throw new InvalidOperationException("Client already connected");
+            }
 
-            Log.Information("Client connected, sending shares");
-            await stream.SendObject(LocalShares);
+            Client = await Server.AcceptTcpClientAsync();
+            NetStream = new NetStream(Client);
+
+            ClientConnected?.Invoke();
         }
 
         public async Task ReceiveRequests()
         {
-            while (Connected)
+            while (IsConnected)
             {
-                var obj = await stream.ReceiveObject();
-                if (obj is FileData data)
+                var obj = await NetStream.ReceiveObject();
+                if (obj == null)
                 {
-                    await ProcessFileRequest(data);
-                    continue;
-                }
-                
-                if (obj is Guid id && id == Utils.DisconnectToken)
-                {
-                    Disconnect();
                     continue;
                 }
 
-                Log.Information("Unknonw request, skipping");
+                if (obj is Guid id)
+                {
+                    if (id == Tokens.GetShares)
+                    {
+                        await NetStream.SendObject(LocalShares);
+                        continue;
+                    }
+
+                    if (id == Tokens.Disconnect)
+                    {
+                        Disconnect();
+                        continue;
+                    }
+                }
+
+                if (obj is FileData data)
+                {
+                    await SendFile(data);
+                    continue;
+                }
+
+                Log.Warning("Received unknown object, skipping");
             }
 
             Disconnect();
         }
 
-        async Task ProcessFileRequest(FileData data)
+        async Task SendFile(FileData data)
         {
-            var share = LocalShares.FirstOrDefault(x => x.ID == data.ShareID);
+            var share = LocalShares[data.ShareID];
             if (share == null)
             {
-                Log.Warning("Invalid share id provided, skipping");
-
-                await stream.SendObject("Invalid share id provided");
+                await SendRejected();
                 return;
             }
 
-            var file = share.PathList.FirstOrDefault(x => x.ID == data.FileID);
+            var file = share[data.FileID];
             if (file == null)
             {
-                Log.Warning("Invalid file id provided, skipping");
-
-                await stream.SendObject("Invalid file id provided");
+                await SendRejected();
                 return;
             }
 
-            if (file.Type == PathType.Folder)
+            var path = file.AbsolutePath(share.Root);
+            Log.Information("Sending {path}", path);
+
+            try
             {
-                Log.Warning("File requested is a folder, skipping");
-
-                await stream.SendObject("File requested is a folder");
-                return;
+                await SendAccepted();
+                await NetStream.SendFile(path);
             }
-
-            Log.Information("Client requested {file}, sending {num} bytes", file.AbsolutePath(share.RootFolder), file.Size);
-
-            await stream.SendObject(Utils.AcceptedToken);
-            await stream.SendFile(file.AbsolutePath(share.RootFolder));
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Error while sending {path}", path);
+            }
         }
 
         public void Disconnect()
         {
-            if (!Connected)
+            if (Client == null && NetStream == null)
             {
                 return;
             }
 
-            stream?.Dispose();
-            client?.Dispose();
+            NetStream?.Dispose();
+            Client?.Close();
 
-            stream = null;
-            client = null;
+            NetStream = null;
+            Client = null;
 
-            Log.Information("Client disconnected");
+            ClientDisconnected?.Invoke();
         }
+
+        async Task SendAccepted() =>
+            await NetStream.SendObject(Tokens.Accepted);
+
+        async Task SendRejected() =>
+            await NetStream.SendObject(Tokens.Rejected);
     }
 }

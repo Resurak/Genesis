@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Genesis.Commons.Exceptions;
+using Serilog;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
@@ -11,13 +13,18 @@ namespace Genesis.Commons
     {
         public NetStream(TcpClient client) : base(client.Client) 
         {
-
+            CanStream = true;
         }
 
-        public event ProgressEventHandler? FileProgress;
+        public bool CanStream { get; private set; }
 
         public async Task<byte[]> ReceiveData(CancellationToken token = default)
         {
+            if (!CanStream)
+            {
+                return new byte[0];
+            }
+
             try
             {
                 var sizeBuffer = new byte[sizeof(int)];
@@ -35,19 +42,22 @@ namespace Genesis.Commons
             }
             catch (Exception ex)
             {
-                if (ex is IndexOutOfRangeException or OperationCanceledException)
+                if (ex is not IndexOutOfRangeException or OperationCanceledException)
                 {
-                    return new byte[0];
+                    CanStream = false;
                 }
-                else
-                {
-                    throw new NotConnectedException();
-                }
+
+                return new byte[0];
             }
         }
 
         public async Task SendData(byte[] dataBuffer, CancellationToken token = default)
         {
+            if (!CanStream)
+            {
+                return;
+            }
+
             try
             {
                 if (dataBuffer.Length == 0)
@@ -64,84 +74,79 @@ namespace Genesis.Commons
             {
                 if (ex is not IndexOutOfRangeException or OperationCanceledException)
                 {
-                    throw new NotConnectedException();
+                    CanStream = false;
                 }
             }
         }
 
-        public async Task<object?> ReceiveObject(CancellationToken token = default)
+        public async Task SendFile(string filePath, IProgress<long>? progress = null, CancellationToken token = default)
         {
-            var data = await ReceiveData(token);
-            return Utils.Deserialize(data);
-        }
+            if (!CanStream)
+            {
+                throw new NotConnectedException();
+            }
 
-        public async Task SendObject(object obj, CancellationToken token = default)
-        {
-            var data = Utils.Serialize(obj);
-            await SendData(data, token);
-        }
-
-        public async Task SendFile(string filePath, Guid fileID = default, CancellationToken token = default)
-        {
             if (!File.Exists(filePath))
             {
                 throw new FileNotFoundException(filePath);
             }
 
-            try
+            using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.None, 1024 * 16);
+
+            var buffer = new byte[1024 * 16];
+            while (fileStream.Position < fileStream.Length)
             {
-                using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.None, 1024 * 16);
+                var read = await fileStream.ReadAsync(buffer, 0, buffer.Length);
+                await WriteAsync(buffer, 0, read);
 
-                var buffer = new byte[1024 * 16];
-                var progress = new NetProgress(fileStream.Length, fileID);
-
-                FileProgress?.Invoke(progress);
-
-                while (fileStream.Position < fileStream.Length)
-                {
-                    var read = await fileStream.ReadAsync(buffer, 0, buffer.Length);
-                    await WriteAsync(buffer, 0, read);
-
-                    progress.Update(read);
-                    FileProgress?.Invoke(progress);
-                }
-
-                progress.Finish();
-                FileProgress?.Invoke(progress);
-            }
-            catch
-            {
-                throw new NotConnectedException();
+                progress?.Report(fileStream.Position);
             }
         }
 
-        public async Task ReceiveFile(string filePath, long size, Guid fileID, CancellationToken token = default)
+        public async Task ReceiveFile(string filePath, long size, IProgress<long>? progress = null, CancellationToken token = default)
         {
-            try
-            {
-                using var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 16);
-
-                var buffer = new byte[1024 * 16];
-                var progress = new NetProgress(size, fileID);
-
-                FileProgress?.Invoke(progress);
-
-                while (fileStream.Position < size)
-                {
-                    var read = await ReadAsync(buffer, 0, buffer.Length);
-                    await fileStream.WriteAsync(buffer, 0, read);
-
-                    progress.Update(read);
-                    FileProgress?.Invoke(progress);
-                }
-
-                progress.Finish();
-                FileProgress?.Invoke(progress);
-            }
-            catch
+            if (!CanStream)
             {
                 throw new NotConnectedException();
             }
+
+            using var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 16);
+
+            var buffer = new byte[1024 * 16];
+            while (fileStream.Position < size)
+            {
+                var read = await ReadAsync(buffer, 0, buffer.Length);
+                await fileStream.WriteAsync(buffer, 0, read);
+
+                progress?.Report(fileStream.Position);
+            }
+        }
+
+        public async Task<object?> ReceiveObject(CancellationToken token = default)
+        {
+            if (!CanStream)
+            {
+                return null;
+            }
+
+            var data = await ReceiveData(token);
+            if (data == null)
+            {
+                return null;
+            }
+
+            return Utils.Deserialize(data);
+        }
+
+        public async Task SendObject(object obj, CancellationToken token = default)
+        {
+            if (!CanStream)
+            {
+                return;
+            }
+
+            var data = Utils.Serialize(obj);
+            await SendData(data, token);
         }
     }
 }

@@ -1,147 +1,228 @@
 ﻿using Genesis.Commons;
+using Genesis.Commons.Exceptions;
+using Genesis.Sync.Exceptions;
 using Serilog;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Genesis.Sync
 {
-    public class SyncClient : TcpClient
+    public sealed class SyncClient : BaseSync
     {
-        public SyncClient() : base() { }
-
-        NetStream? stream;
-
-        public new bool Connected => stream != null;
-
-        public List<Share> LocalShares { get; set; } = new List<Share>();
-        public List<Share> ServerShares { get; set; } = new List<Share>();
-
-        public async Task ConnectAsync()
+        public SyncClient() : base()
         {
-            await ConnectAsync("127.0.0.1", 6969);
-            stream = new NetStream(this);
-
-            Log.Information("Connected to server");
-            await GetShareList();
+            ServerShares = new ShareList();
         }
 
-        public async Task CreateShare(string root)
-        {
-            var share = new Share(root);
-            await share.Update();
+        TcpClient? Client;
+        NetStream? NetStream;
 
-            Log.Information("Created share with id {id} and root {root}", share.ID, share.RootFolder);
-            LocalShares.Add(share);
+        public event UpdateEventHandler? Connected;
+        public event UpdateEventHandler? Disconnected;
+
+        public ShareList ServerShares { get; set; }
+        public bool IsConnected => Client != null && NetStream != null && NetStream.CanStream;
+
+        public async Task ConnectAsync(string address)
+        {
+            if (IsConnected)
+            {
+                throw new InvalidOperationException("Client already connected. Disconnect first");
+            }
+
+            var ip = IPAddress.Parse(address);
+            var endPoint = new IPEndPoint(ip, 6969);
+
+            Client = new TcpClient();
+            await Client.ConnectAsync(endPoint);
+
+            NetStream = new NetStream(Client);
+            Connected?.Invoke(this);
         }
 
         public async Task GetShareList()
         {
-            var shares = await stream.ReceiveObject();
-            if (shares is List<Share> list)
+            await CheckConnection();
+            await NetStream.SendObject(Tokens.GetShares);
+
+            var obj = await NetStream.ReceiveObject();
+            if (obj is ShareList list)
             {
                 ServerShares = list;
-                Log.Information("Received share list from server");
+                return;
             }
-            else
-            {
-                Log.Warning("Could not receive share list from serverShare");
-            }
+
+            throw new RejectedException();
         }
 
-        public async Task SyncShares(Guid localShareID, Guid serverShareID)
+        public async Task SyncShare(ShareData localShare, ShareData serverShare, IProgress<PathData>? fileReceived = null)
         {
-            var localShare = LocalShares.FirstOrDefault(x => x.ID == localShareID);
-            var serverShare = ServerShares.FirstOrDefault(x => x.ID == serverShareID);
-
-            if (localShare == null)
-            {
-                Log.Warning("Could not find localShare share with id {id}", localShareID);
-                return;
-            }
-
-            if (serverShare == null)
-            {
-                Log.Warning("Could not find serverShare share with id {id}", serverShareID);
-                return;
-            }
-
-            Log.Information("Preparing local share to sync");
+            await CheckConnection();
             localShare.PrepareShare(serverShare);
 
-            foreach (var path in localShare.PathList)
+            var syncList = localShare.PathList.Where(x => x.Flag_Sync);
+            var deleteList = localShare.PathList.Where(x => x.Flag_Delete);
+            var incompleteList = new PathList();
+
+            var progress = new SyncProgress(syncList.Sum(x => x.Size));
+            OnProgress(progress);
+
+            foreach (var data in syncList)
             {
-                var absolutePath = path.AbsolutePath(localShare.RootFolder);
-
-                if (path.Flag_Sync)
+                if (!IsConnected)
                 {
-                    switch (path.Type)
-                    {
-                        case PathType.File:
-                        {
-                            var data = new FileData() { FileID = path.ID, ShareID = serverShare.ID };
-                            await stream.SendObject(data);
+                    incompleteList.Add(data);
 
-                            if (!await IsRequestAccepted())
-                            {
-                                Log.Warning("Can't download file with id {id} from server", path.ID);
-                                continue;
-                            }
+                    progress.CurrentSyncBytes += data.Size;
+                    OnProgress(progress);
 
-                            await stream.ReceiveFile(absolutePath, path.Size, path.ID);
-                            Log.Information("Received {path}", absolutePath);
-
-                            break;
-                        }
-                        case PathType.Folder:
-                        {
-                            if (!Directory.Exists(absolutePath))
-                            {
-                                Directory.CreateDirectory(absolutePath);
-                            }
-
-                            break;
-                        }
-                    }
+                    continue;
                 }
 
-                if (path.Flag_Delete)
+                var path = data.AbsolutePath(localShare.Root);
+                switch (data.Type)
                 {
-                    switch (path.Type)
+                    case PathType.Folder:
                     {
-                        case PathType.File:
-                            if (File.Exists(absolutePath))
-                                File.Delete(absolutePath);
-                            break;
-                        case PathType.Folder:
-                            if (Directory.Exists(absolutePath))
-                                Directory.Delete(absolutePath, true);
-                            break;
+                        if (!Directory.Exists(path))
+                        {
+                            Directory.CreateDirectory(path);
+                        }
+
+                        break;
+                    }
+                    case PathType.File:
+                    {
+                        var fileData = new FileData(data.ID, serverShare.ID);
+                        if (!await IsRequestAccepted(fileData))
+                        {
+                            Log.Warning("Server rejected download of file {path}", data.Path);
+                            incompleteList.Add(data);
+
+                            progress.CurrentSyncBytes += data.Size;
+                            OnProgress(progress);
+
+                            continue;
+                        }
+
+                        progress.CurrentFile = data;
+                        progress.TotalFileBytes = data.Size;
+
+                        try
+                        {
+                            var before = 0L;
+                            await NetStream.ReceiveFile(path, data.Size, new Progress<long>(x =>
+                            {
+                                var diff = x - before;
+
+                                progress.CurrentFileBytes = x;
+                                progress.CurrentSyncBytes += diff;
+                                OnProgress(progress);
+
+                                before = x;
+                            }));
+
+                            fileReceived?.Report(data);
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Warning(ex, "Error while receiving {file}. Deleting", path);
+
+                            if (File.Exists(path))
+                            {
+                                File.Delete(path);
+                            }
+                        }
+
+                        break;
                     }
                 }
             }
-        }
 
-        async Task<bool> IsRequestAccepted()
-        {
-            var obj = await stream.ReceiveObject();
-            return obj is Guid id && id == Utils.AcceptedToken;
+            progress.Stop();
+            OnProgress(progress);
+
+            foreach (var data in deleteList)
+            {
+                var path = data.AbsolutePath(localShare.Root);
+                switch (data.Type)
+                {
+                    case PathType.File:
+                        if (File.Exists(path))
+                            File.Delete(path);
+                        break;
+                    case PathType.Folder:
+                        if (Directory.Exists(path))
+                            Directory.Delete(path, true);
+                        break;
+                }
+            }
+
+            if (incompleteList.Count > 0)
+            {
+                Log.Warning(new string('-', 50));
+
+                Log.Warning("A total of {num} files had errors while being received", incompleteList.Count);
+                Log.Warning("Full list:");
+
+                var i = 1;
+                foreach (var data in incompleteList)
+                {
+                    Log.Warning("\t\t[{i}]: {path} | {size}", i, data.Path, data.Size);
+                    i++;
+                }
+
+                Log.Warning(new string('-', 50));
+            }
         }
 
         public async Task Disconnect()
         {
-            if (!Connected)
+            if (NetStream != null && NetStream.CanStream)
+            {
+                await NetStream.SendObject(Tokens.Disconnect);
+            }
+
+            if (NetStream == null && Client == null)
             {
                 return;
             }
 
-            await stream.SendObject(Utils.DisconnectToken);
+            NetStream?.Dispose();
+            Client?.Close();
 
-            stream?.Dispose();
-            this.Close();
+            NetStream = null;
+            Client = null;
+
+            Disconnected?.Invoke(this);
+        }
+
+        public async Task<bool> IsRequestAccepted(object obj)
+        {
+            if (!IsConnected)
+            {
+                return false;
+            }
+
+            await NetStream.SendObject(obj);
+
+            var resp = await NetStream.ReceiveObject();
+            return resp is Guid id && id == Tokens.Accepted;
+        }
+
+        async Task CheckConnection()
+        {
+            if (!IsConnected)
+            {
+                await Disconnect();
+                throw new NotConnectedException();
+            }
         }
     }
 }

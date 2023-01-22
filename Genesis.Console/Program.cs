@@ -14,22 +14,44 @@ if (args.Length > 0)
 {
     if (args[0] == "client")
     {
-        Log.Information("Starting client");
+        Log.Information("Starting client, enter ip address");
+
+        var ip = Console.ReadLine();
+        var client = new SyncClient();
+
+        var lines = File.ReadAllLines("localShares.txt");
+        if (lines.Length == 0)
+        {
+            Log.Information("No local shares, closing...");
+
+            Console.ReadLine();
+            return;
+        }
+
+        foreach (var line in lines)
+        {
+            await client.CreateShare(line);
+        }
 
         var local = @"C:\Users\danie\Desktop\share test";
+        var syncProgress = new SyncProgress(-1);
 
-        var client = new SyncClient();
-        await client.CreateShare(local);
+        var showTimer = false;
+        var timer = new Timer(ShowProgress, null, Timeout.Infinite, 500);
 
-        await client.ConnectAsync();
 
-        while (client.Connected)
+        await client.ConnectAsync(ip);
+        await client.GetShareList();
+
+        client.SyncProgress += ProgressCallback;
+
+        while (client.IsConnected)
         {
             Log.Information("Select local share to sync:");
             for (int i = 0; i < client.LocalShares.Count; i++)
             {
                 var share = client.LocalShares[i];
-                Log.Information("[{i}]:\t\t{name} | {path} | {id}", i, share.Name, share.RootFolder, share.ID);
+                Log.Information("[{i}]:\t\t{name} | {path} | {id}", i, share.Name, share.Root, share.ID);
             }
 
             var selection = Console.ReadLine();
@@ -50,7 +72,7 @@ if (args.Length > 0)
             for (int i = 0; i < client.ServerShares.Count; i++)
             {
                 var share = client.ServerShares[i];
-                Log.Information("[{i}]:\t\t{name} | {path} | {id}", i, share.Name, share.RootFolder, share.ID);
+                Log.Information("[{i}]:\t\t{name} | {path} | {id}", i, share.Name, share.Root, share.ID);
             }
 
             selection = Console.ReadLine();
@@ -66,9 +88,13 @@ if (args.Length > 0)
 
             var serverShare = client.ServerShares[num];
 
-            Log.Information("Syncing local share {path1} with server share {path2}", localShare.RootFolder, serverShare.RootFolder);
-            await client.SyncShares(localShare.ID, serverShare.ID);
+            Log.Information("Syncing local share {path1} with server share {path2}", localShare.Root, serverShare.Root);
+            timer.Change(0, 500);
 
+            await client.SyncShare(localShare, serverShare/*, new Progress<PathData>(x => Log.Information("Synced {path}", x.Path))*/);
+
+            timer.Change(0, 500);
+            timer.Change(Timeout.Infinite, Timeout.Infinite);
             Log.Information("Local folder synced\n------------------------------------------------------------");
         }
 
@@ -76,6 +102,16 @@ if (args.Length > 0)
 
         Console.ReadLine();
         return;
+
+        void ShowProgress(object? state = null)
+        {
+            Log.Information("Percent completed => {percent}", syncProgress.SyncPercent);
+        }
+
+        void ProgressCallback(SyncProgress progress)
+        {
+            syncProgress = progress;
+        }
     }
 
     if (args[0] == "server")
@@ -89,9 +125,23 @@ if (args.Length > 0)
         var server = new SyncServer();
         server.Start();
 
-        await server.CreateShare(local1);
-        await server.CreateShare(local2);
-        await server.CreateShare(local3);
+        var lines = File.ReadAllLines("serverShares.txt");
+        if (lines.Length == 0)
+        {
+            Log.Information("No local shares, closing...");
+
+            Console.ReadLine();
+            return;
+        }
+
+        foreach (var line in lines)
+        {
+            await server.CreateShare(line);
+        }
+
+        //await server.CreateShare(local1);
+        //await server.CreateShare(local2);
+        //await server.CreateShare(local3);
 
         await server.WaitClient();
         await server.ReceiveRequests();
@@ -111,11 +161,11 @@ else
 //var sw = Stopwatch.StartNew();
 
 //Log.Information("Creating pseudo remote share");
-//var remoteShare = new Share(@"C:\Users\danie\Desktop\Giochi\server minecraft");
+//var remoteShare = new ShareData(@"C:\Users\danie\Desktop\Giochi\server minecraft");
 //await remoteShare.Update();
 
 //Log.Information("Creating pseudo local share");
-//var localShare = new Share(@"C:\Users\danie\Desktop\share test\");
+//var localShare = new ShareData(@"C:\Users\danie\Desktop\share test\");
 //await localShare.Update();
 
 //Log.Information("Syncing shares");

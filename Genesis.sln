@@ -7,7 +7,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Genesis.Commons", "Genesis.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Genesis.Console", "Genesis.Console\Genesis.Console.csproj", "{FB6A82C3-B75A-4536-BA16-3603EE876122}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Genesis.Sync", "Genesis.Sync\Genesis.Sync.csproj", "{443B14C5-B733-490B-8CCB-19F5AD733917}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Genesis.Sync", "Genesis.Sync\Genesis.Sync.csproj", "{443B14C5-B733-490B-8CCB-19F5AD733917}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Genesis", "Genesis\Genesis.csproj", "{320B1B39-4A1C-42EA-9EFB-0ECFCA7232BC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenesisLib", "GenesisLib\GenesisLib.csproj", "{F6C11627-CB3A-49F6-AADE-F3B61E349840}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -27,6 +31,14 @@ Global
 		{443B14C5-B733-490B-8CCB-19F5AD733917}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{443B14C5-B733-490B-8CCB-19F5AD733917}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{443B14C5-B733-490B-8CCB-19F5AD733917}.Release|Any CPU.Build.0 = Release|Any CPU
+		{320B1B39-4A1C-42EA-9EFB-0ECFCA7232BC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{320B1B39-4A1C-42EA-9EFB-0ECFCA7232BC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{320B1B39-4A1C-42EA-9EFB-0ECFCA7232BC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{320B1B39-4A1C-42EA-9EFB-0ECFCA7232BC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F6C11627-CB3A-49F6-AADE-F3B61E349840}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F6C11627-CB3A-49F6-AADE-F3B61E349840}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F6C11627-CB3A-49F6-AADE-F3B61E349840}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F6C11627-CB3A-49F6-AADE-F3B61E349840}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

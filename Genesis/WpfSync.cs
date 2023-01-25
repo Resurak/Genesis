@@ -1,10 +1,12 @@
 ﻿using Genesis.ViewModels;
 using Genesis.Views;
+using GenesisLib;
 using Serilog.Core;
 using Serilog.Events;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -23,7 +25,7 @@ namespace Genesis
         {
             if (DataContext != null)
             {
-                DataContext.Logs.Add($"{logEvent.Timestamp.ToString("hh:mm:ss:ffff")} || [{logEvent.Level}] || {logEvent.RenderMessage()}");
+                DataContext.Logs.Add(new LogData(logEvent));
             }
         }
     }

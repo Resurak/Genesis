@@ -17,14 +17,14 @@ namespace Genesis.ViewModels
     {
         public MainWindowVM() 
         {
-            Logs = new ObservableCollection<string>();
+            Logs = new ObservableCollection<LogData>();
             TestCommand = new RelayCommand(async _ => await DoTest());
         }
 
         public ShareData ShareData { get; set; }
 
         public RelayCommand TestCommand { get; set; }
-        public ObservableCollection<string> Logs { get; set; }
+        public ObservableCollection<LogData> Logs { get; set; }
 
 
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -33,32 +33,22 @@ namespace Genesis.ViewModels
         {
             try
             {
-                var root = @"C:\Users\danie\Desktop\VanillaExpandedFramework-061022";
+                var sourceRoot = @"C:\Users\danie\Desktop\root";
+                var destinationRoot = @"C:\Users\danie\Desktop\share test";
 
                 var sw = Stopwatch.StartNew();
-                var share = new ShareData(root);
-                await share.Update();
+                var source = new ShareData(sourceRoot);
+                var destination = new ShareData(destinationRoot);
+
+                await source.Update();
+                await destination.Update();
 
                 sw.Stop();
-                Log.Information("Share created in {ms}ms", sw.ElapsedMilliseconds);
+                Log.Information("Shares created in {ms}ms", sw.ElapsedMilliseconds);
 
-                sw.Restart();
-                Log.Information("Total files processed: {num} || Total size: {size}", share.RootPathData.TotalFileCount, share.RootPathData.TotalFileSize);
-
-                sw.Stop();
-                Log.Information("Total time necessary to get data recursively: {ms}", sw.ElapsedMilliseconds);
-
-                sw.Restart();
-                var json = JsonConvert.SerializeObject(share, Formatting.None);
-
-                sw.Stop();
-                Log.Information("Total time to create json: {ms} || Size: {size}", sw.ElapsedMilliseconds, json.Length);
-
-                sw.Restart();
-                var data = share.Serialize();
-
-                sw.Stop();
-                Log.Information("Total time to create messagePack: {ms} || Size: {size}", sw.ElapsedMilliseconds, data.Length);
+                await destination.CompareShares(source);
+                var json = JsonConvert.SerializeObject(destination, Formatting.Indented);
+                Log.Information("{json}", json);
             }
             catch (Exception ex)
             {

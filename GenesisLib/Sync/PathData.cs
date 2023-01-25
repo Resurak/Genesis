@@ -10,6 +10,8 @@ namespace GenesisLib.Sync
     {
         public PathData()
         {
+            Flags = new SyncFlags();
+
             FileList = new SyncItemList<PathData>();
             FolderList = new SyncItemList<PathData>();
         }
@@ -28,6 +30,7 @@ namespace GenesisLib.Sync
 
         public Guid ID { get; set; }
         public long Size { get; set; }
+        public SyncFlags Flags { get; set; }
 
         public string Name { get; set; }
         public PathType Type { get; set; }
@@ -77,6 +80,16 @@ namespace GenesisLib.Sync
 
                 return total;
             }
+        }
+
+        public void ToSync()
+        {
+            Flags = new SyncFlags(true);
+        }
+
+        public void ToDelete()
+        {
+            Flags = new SyncFlags(false, true);
         }
     }
 

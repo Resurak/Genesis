@@ -27,28 +27,6 @@ namespace GenesisLib.Sync
             RootPathData = await GetPathData(Root);
         }
 
-        async Task GetFolderInfo(string path, PathData data)
-        {
-            var tasks = new List<Task>();
-            var dirInfo = new DirectoryInfo(path);
-
-            var tempData = new List<PathData>();
-            foreach (var file in dirInfo.EnumerateFiles())
-            {
-                var pathData = new PathData(file.Name, PathType.File, file.Length, file.CreationTime, file.LastWriteTime);
-                data.FileList.Add(pathData);
-            }
-
-            foreach (var folder in dirInfo.EnumerateDirectories()) 
-            {
-                var pathData = new PathData(folder.Name, PathType.Folder);
-                tasks.Add(Task.Run(() => GetFolderInfo(folder.FullName, pathData)));
-            }
-
-            await Task.WhenAll(tasks);
-            data.FolderList.AddRange(tempData);
-        }
-
         async Task<PathData> GetPathData(string path)
         {
             var dirInfo = new DirectoryInfo(path);
@@ -69,5 +47,56 @@ namespace GenesisLib.Sync
             pathData.FolderList.AddRange(await Task.WhenAll(taskList));
             return pathData;
         }
+
+        public async Task CompareShares(ShareData source, bool twoWay = false)
+        {
+            await Task.Run(() =>
+            {
+                ComparePathData(RootPathData, source.RootPathData, twoWay);
+            });
+        }
+
+        void ComparePathData(PathData local, PathData source, bool twoWay = false)
+        {
+            foreach (var file in source.FileList)
+            {
+                var data = local.FileList[file.Name];
+                if (data == null)
+                {
+                    file.ToSync();
+                    local.FileList.Add(file);
+
+                    continue;
+                }
+
+                if (data.LastWriteDate < file.LastWriteDate)
+                {
+                    data.ToSync();
+                    continue;
+                }
+
+                // todo: add more checking
+            }
+
+            foreach (var folder in source.FolderList)
+            {
+                var data = local.FolderList[folder.Name];
+                if (data == null)
+                {
+                    folder.ToSync();
+                    local.FolderList.Add(folder);
+
+                    continue;
+                }
+
+                ComparePathData(data, folder, twoWay);
+            }
+        }
+
+        //public async Task<PathData> GetFilesToSync()
+        //{
+        //    var list = new List<PathData>();
+
+        //}
     }
 }

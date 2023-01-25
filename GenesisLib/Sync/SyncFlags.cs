@@ -6,8 +6,14 @@ using System.Threading.Tasks;
 
 namespace GenesisLib.Sync
 {
-    public class SyncFlags
+    public struct SyncFlags
     {
+        public SyncFlags(bool sync, bool delete = false)
+        {
+            this.Sync = sync;
+            this.Delete = delete;
+        }
+
         public bool Sync { get; set; }
         public bool Delete { get; set; }
     }

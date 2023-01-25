@@ -13,14 +13,52 @@
 	</Window.DataContext>
 
     <Grid>
+
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
             <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
-        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+        <!--<DataGrid ItemsSource="{Binding Logs}" ColumnWidth="auto" 
+                  CanUserReorderColumns="False" CanUserAddRows="False" CanUserResizeColumns="False" 
+                  CanUserResizeRows="False" ScrollViewer.CanContentScroll="True"/>-->
+        <!--<ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
             <ItemsControl ItemsSource="{Binding Logs}"/>
-        </ScrollViewer>
+        </ScrollViewer>-->
+
+        <Grid Grid.Column="0">
+
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            
+            
+            <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding Logs}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="auto"/>
+                                    <ColumnDefinition Width="auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Text="{Binding Timestamp}" Margin="5,0"/>
+                                <TextBlock Grid.Column="1" Text="{Binding LogLevel}" Margin="5,0"/>
+                                <TextBlock Grid.Column="2" Text="{Binding Message}" Margin="5,0"/>
+                                <TextBlock Grid.Column="3" Text="{Binding Exception}" Margin="5,0"/>
+
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+        </Grid>
 
         <Button Grid.Row="1" Command="{Binding TestCommand}" Content="Test" Padding="0,5" Margin="350,5"/>
 

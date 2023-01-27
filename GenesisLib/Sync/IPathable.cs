@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 
 namespace GenesisLib.Sync
 {
-    public interface ISyncItem : IGuidItem
+    public interface IPathable
     {
-        public string Name { get; set; }
+        public string Path { get; set; }
     }
 }

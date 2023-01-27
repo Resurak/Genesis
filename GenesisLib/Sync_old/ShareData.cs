@@ -8,7 +8,7 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GenesisLib.Sync
+namespace GenesisLib.Sync_old
 {
     public class ShareData
     {

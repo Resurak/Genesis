@@ -25,7 +25,7 @@ namespace Genesis
         {
             if (DataContext != null)
             {
-                DataContext.Logs.Add(new LogData(logEvent));
+                App.Current.Dispatcher.Invoke(new Action(() => DataContext.Logs.Add(new LogData(logEvent))));
             }
         }
     }

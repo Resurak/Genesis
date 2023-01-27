@@ -1,5 +1,6 @@
 ﻿using GenesisLib;
 using GenesisLib.Sync;
+using GenesisLib.Sync_old;
 using Newtonsoft.Json;
 using Serilog;
 using System;
@@ -21,39 +22,28 @@ namespace Genesis.ViewModels
             TestCommand = new RelayCommand(async _ => await DoTest());
         }
 
-        public ShareData ShareData { get; set; }
-
         public RelayCommand TestCommand { get; set; }
         public ObservableCollection<LogData> Logs { get; set; }
-
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
         public async Task DoTest()
         {
-            try
+            var sourceRoot = @"C:\Users\danie\Desktop\root";
+            var destinationRoot = @"C:\Users\danie\Desktop\share test";
+
+            var sourceShare = new Share(sourceRoot);
+            var destinationShare = new Share(destinationRoot);
+
+            await sourceShare.Update();
+            await destinationShare.Update();
+
+            destinationShare.CompareShare(sourceShare);
+            await Task.Run(() =>
             {
-                var sourceRoot = @"C:\Users\danie\Desktop\root";
-                var destinationRoot = @"C:\Users\danie\Desktop\share test";
-
-                var sw = Stopwatch.StartNew();
-                var source = new ShareData(sourceRoot);
-                var destination = new ShareData(destinationRoot);
-
-                await source.Update();
-                await destination.Update();
-
-                sw.Stop();
-                Log.Information("Shares created in {ms}ms", sw.ElapsedMilliseconds);
-
-                await destination.CompareShares(source);
-                var json = JsonConvert.SerializeObject(destination, Formatting.Indented);
+                var json = JsonConvert.SerializeObject(destinationShare, Formatting.Indented);
                 Log.Information("{json}", json);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "boh");
-            }
+            });
         }
     }
 }

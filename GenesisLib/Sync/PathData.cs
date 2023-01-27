@@ -1,105 +1,59 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace GenesisLib.Sync
 {
-    public class PathData : ISyncItem
+    public class PathData : IPathable
     {
-        public PathData()
+        public PathData(FileInfo info, string root)
         {
-            Flags = new SyncFlags();
+            this.Name = info.Name;
+            this.Path = string.Join('\\', info.FullName.Split('\\').Except(root.Split('\\')));
 
-            FileList = new SyncItemList<PathData>();
-            FolderList = new SyncItemList<PathData>();
+            this.PathType = PathType.File;
+
+            this.Size = info.Length;
+            this.Hash = new byte[0];
+
+            this.CreationTime = info.CreationTime;
+            this.LastWriteTime = info.LastWriteTime;
         }
 
-        public PathData(string name, PathType type, long length = 0, DateTime creation = default, DateTime lastwrite = default) : this()
+        public PathData(DirectoryInfo info, string root)
         {
-            ID = Guid.NewGuid();
+            this.Name = info.Name;
+            this.Path = string.Join('\\', info.FullName.Split('\\').Except(root.Split('\\')));
 
-            Name = name;
-            Type = type;
+            this.PathType = PathType.Directory;
 
-            Size = length;
-            CreationDate = creation;
-            LastWriteDate = lastwrite;
+            this.Size = 0;
+            this.Hash = new byte[0];
+
+            this.CreationTime = info.CreationTime;
+            this.LastWriteTime = info.LastWriteTime;
         }
-
-        public Guid ID { get; set; }
-        public long Size { get; set; }
-        public SyncFlags Flags { get; set; }
 
         public string Name { get; set; }
-        public PathType Type { get; set; }
+        public string Path { get; set; }
+        public PathType PathType { get; set; }
 
-        public DateTime CreationDate { get; set; }
-        public DateTime LastWriteDate { get; set; }
+        public long Size { get; set; }
+        public byte[] Hash { get; set; }
 
-        public SyncItemList<PathData> FileList { get; set; }
-        public SyncItemList<PathData> FolderList { get; set; }
+        public DateTime CreationTime { get; set; }
+        public DateTime LastWriteTime { get; set; }
 
-        public int FileCount => FileList.Count;
-        public int FolderCount => FolderList.Count;
-
-        public int TotalFileCount
-        {
-            get
-            {
-                var total = 0;
-                foreach (var item in FileList)
-                {
-                    total += 1;
-                }
-
-                foreach (var item in FolderList)
-                {
-                    total += item.TotalFileCount;
-                }
-
-                return total;
-            }
-        }
-
-        public long TotalFileSize
-        {
-            get
-            {
-                var total = 0L;
-                foreach (var item in FileList)
-                {
-                    total += item.Size;
-                }
-
-                foreach (var item in FolderList)
-                {
-                    total += item.TotalFileSize;
-                }
-
-                return total;
-            }
-        }
-
-        public void ToSync()
-        {
-            Flags = new SyncFlags(true);
-        }
-
-        public void ToDelete()
-        {
-            Flags = new SyncFlags(false, true);
-        }
+        public bool SyncFlag { get; set; }
+        public bool DeleteFlag { get; set; }
     }
 
     public enum PathType
     {
         File,
-        Folder,
-
-        Reserved1,
-        Reserved2,
-        Reserved3,
+        Directory
     }
 }

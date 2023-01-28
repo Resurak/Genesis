@@ -13,8 +13,12 @@ namespace GenesisLib.Sync
             this.Path = path;
             this.BufferSize = options != null ? options.FileBufferLength : 1024 * 16;
 
-            this.Stream = new FileStream(path, mode, mode == FileMode.Open ? FileAccess.Read : FileAccess.Write, FileShare.None, 1024 * 64, FileOptions.WriteThrough);
-            this.Stream.SetLength(size);
+            this.Stream = new FileStream(this.Path, mode, mode == FileMode.Open ? FileAccess.Read : FileAccess.Write, FileShare.None, 1024 * 64);
+            if (mode == FileMode.Create)
+            {
+                this.Stream.SetLength(size);
+            }
+            this.Stream.Position = 0;
         }
 
         FileStream Stream;

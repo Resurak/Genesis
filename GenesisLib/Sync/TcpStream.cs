@@ -67,12 +67,12 @@ namespace GenesisLib.Sync
                 return new object();
             }
 
-            return data.Deserialize();
+            return data.Msg_Deserialize();
         }
 
         public async Task SendObject(object obj, CancellationToken token = default)
         {
-            var data = obj.Serialize();
+            var data = obj.Msg_Serialize();
             await SendData(data, token);
         }
 

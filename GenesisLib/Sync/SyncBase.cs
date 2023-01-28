@@ -1,4 +1,5 @@
 ﻿using GenesisLib.Exceptions;
+using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -31,7 +32,7 @@ namespace GenesisLib.Sync
 
         public SyncOptions SyncOptions { get; set; }
         public SyncManager? SyncManager { get; set; }
-        public bool IsConnected => Client != null && Stream != null;
+        public bool ClientConnected => Client != null && Stream != null;
 
         public GuidItemList<Share> LocalShares { get; set; }
         public GuidItemList<Share> RemoteShares { get; set; }
@@ -44,25 +45,117 @@ namespace GenesisLib.Sync
 
         public SyncProgressEventHandler? SyncProgress;
 
-        public void Update()
+        public async Task Update()
         {
+            foreach (var share in LocalShares)
+            {
+                await share.Update();
+            }
+
+            Log.Information("All shares updated");
+        }
+
+        public async Task LoadClientShares()
+        {
+            var path = "clientShares.json";
+            if (!File.Exists(path))
+            {
+                Log.Warning("No local share list saved, skipping load");
+                return;
+            }
+
+            var json = File.ReadAllText(path);
+            var shareList = JsonConvert.DeserializeObject<GuidItemList<Share>>(json);
+            if (shareList != null)
+            {
+                Log.Information("Local share list loaded");
+                LocalShares = shareList;
+
+                await Update();
+            }
+            else
+            {
+                Log.Warning("Invalid share list, skipping load");
+            }
             // todo
         }
 
-        public void Load()
+        public async Task LoadServerShares()
         {
+            var path = "serverShares.json";
+            if (!File.Exists(path))
+            {
+                Log.Warning("No local share list saved, skipping load");
+                return;
+            }
+
+            var json = File.ReadAllText(path);
+            var shareList = JsonConvert.DeserializeObject<GuidItemList<Share>>(json);
+            if (shareList != null)
+            {
+                Log.Information("Local share list loaded");
+                LocalShares = shareList;
+
+                await Update();
+            }
+            else
+            {
+                Log.Warning("Invalid share list, skipping load");
+            }
             // todo
         }
 
-        public void Save() 
+        public void SaveLocal() 
         {
-            // todo
+            var path = "clientShares.json";
+            var json = JsonConvert.SerializeObject(LocalShares, Formatting.Indented);
+
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+
+            File.WriteAllText(path, json);
+            Log.Information("Local share list saved on {path}", new FileInfo(path).FullName);
+        }
+
+        public void SaveServer()
+        {
+            var path = "serverShares.json";
+            var json = JsonConvert.SerializeObject(LocalShares, Formatting.Indented);
+
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+
+            File.WriteAllText(path, json);
+            Log.Information("Server share list saved on {path}", new FileInfo(path).FullName);
+        }
+
+        public async Task AddShare(string root, bool local = true)
+        {
+            Log.Information("Adding {root} to local share list", root);
+
+            var share = new Share(root);
+            await share.Update();
+
+            LocalShares.Add(share);
+
+            if (local)
+            {
+                SaveLocal();
+            }
+            else
+            {
+                SaveServer();
+            }
         }
 
         public async Task GetShareList()
         {
             Log.Information("Downloading ShareList");
-            await SendPacket(PacketType.Download_ShareList);
+            await Stream.SendObject(PacketType.GetShareList);
         }
 
         public async Task ShareSync(Share localShare, Share sourceShare)
@@ -73,44 +166,75 @@ namespace GenesisLib.Sync
             var data = new ShareData(sourceShare.ID, itemList);
 
             SyncManager = new SyncManager(localShare, SyncOptions);
-            await SendPacket(PacketType.ShareSync, data);
+            await Stream.SendObject(data);
 
             Progress = new SyncProgress(itemList.Sum(x => x.Size));
             SyncProgress?.Invoke(Progress);
         }
 
-        protected async Task SendPacket(PacketType type, object? obj = null)
-        {
-            try
-            {
-                CheckConnection();
-                var packet = new SyncPacket(obj, type);
+        //protected async Task SendPacket(PacketType type, object? obj = null)
+        //{
+        //    try
+        //    {
+        //        CheckConnection();
+        //        var packet = new SyncPacket(obj, type);
 
-                await Stream.SendObject(packet);
-            }
-            catch (Exception ex)
-            {
-                await CheckException(ex);
-            }
-        }
+        //        await Stream.SendObject(packet);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        await CheckException(ex);
+        //    }
+        //}
 
         protected async Task ReceivePacketsLoop()
         {
-            while (IsConnected)
+            while (ClientConnected)
             {
                 try
                 {
                     CheckConnection();
 
                     var data = await Stream.ReceiveObject();
-                    if (data is SyncPacket packet)
+                    if (data is PacketType type)
                     {
-                        await ProcessPacket(packet);
+                        await ProcessPacket(type);
+                        continue;
                     }
-                    else
+
+                    if (data is GuidItemList<Share> shareList)
                     {
-                        Log.Warning("Unknown data received");
+                        RemoteShares = shareList;
+                        continue;
                     }
+
+                    if (data is ShareData shareData)
+                    {
+                        await ProcessShareSync(shareData);
+                        continue;
+                    }
+
+                    if (data is FileData fileData)
+                    {
+                        await ProcessFileData(fileData);
+                        continue;
+                    }
+
+                    if (data is List<FileData> fileDataList)
+                    {
+                        if (SyncManager != null)
+                        {
+                            foreach (var file in fileDataList)
+                            {
+                                await SyncManager.ProcessIncoming(file);
+                            }
+                        }
+
+                        continue;
+                    }
+
+                    Log.Warning("{@obj}", data);
+                    Log.Warning("Unknown data received");
                 }
                 catch (Exception ex)
                 {
@@ -120,6 +244,10 @@ namespace GenesisLib.Sync
 
             await Disconnect();
         }
+
+
+        async Task ProcessPacket(PacketType type) =>
+            await ProcessPacket(new SyncPacket(null, type));
 
         async Task ProcessPacket(SyncPacket packet)
         {
@@ -135,66 +263,9 @@ namespace GenesisLib.Sync
                     await Disconnect();
                     break;
                 }
-                case PacketType.Upload_ShareList:
+                case PacketType.GetShareList:
                 {
-                    if (packet.Payload is GuidItemList<Share> shareList)
-                    {
-                        Log.Information("ShareList received");
-                        RemoteShares = shareList;
-                    }
-                    else
-                    {
-                        Log.Warning("Received invalid share list");
-                    }
-
-                    break;
-                }
-                case PacketType.Download_ShareList:
-                {
-                    await SendPacket(PacketType.Upload_ShareList, LocalShares);
-                    break;
-                }
-                case PacketType.FileData:
-                {
-                    if (packet.Payload is FileData data)
-                    {
-                        await ProcessFileData(data);
-                    }
-                    else
-                    {
-                        Log.Warning("Received invalid file data");
-                    }
-
-                    break;
-                }
-                case PacketType.FileDataList:
-                {
-                    if (packet.Payload is List<FileData> fileDataList)
-                    {
-                        foreach (var fileData in fileDataList)
-                        {
-                            await ProcessFileData(fileData);
-                        }
-                    }
-                    else
-                    {
-                        Log.Warning("Received invalid file data list");
-                    }
-
-                    break;
-                }
-                case PacketType.ShareSync:
-                {
-                    if (packet.Payload is ShareData shareData)
-                    {
-                        await ProcessShareSync(shareData);
-                    }
-                    else
-                    {
-                        Log.Warning("Received invalid share data");
-                        await SendPacket(PacketType.ShareSync_Rejected);
-                    }
-
+                    await Stream.SendObject(LocalShares);
                     break;
                 }
                 case PacketType.ShareSync_Accepted:
@@ -239,36 +310,48 @@ namespace GenesisLib.Sync
 
         async Task ProcessShareSync(ShareData data)
         {
-            var share = LocalShares[data.ID];
-            if (share == null)
+            try
             {
-                Log.Warning("No share with id {id}, rejecting share sync", data.ID);
-                return;
-            }
-
-            await SendPacket(PacketType.ShareSync_Accepted);
-            SyncManager = new SyncManager(share, SyncOptions);
-
-            var fileDataList = new List<FileData>();
-            await foreach (var fileData in SyncManager.EnumerateFileData(data.Items))
-            {
-                var total = fileDataList.Sum(x => x.Data.Length);
-                if (total > SyncOptions.StreamBufferLength)
+                var share = LocalShares[data.ID];
+                if (share == null)
                 {
-                    await SendPacket(PacketType.FileDataList, fileDataList);
-                    fileDataList.Clear();
+                    Log.Warning("No share with id {id}, rejecting share sync", data.ID);
+                    return;
                 }
 
-                fileDataList.Add(fileData);
-            }
+                await Stream.SendObject(PacketType.ShareSync_Accepted);
+                SyncManager = new SyncManager(share, SyncOptions);
 
-            await SendPacket(PacketType.ShareSync_Completed);
+                var fileDataList = new List<FileData>();
+                await foreach (var fileData in SyncManager.EnumerateFileData(data.Items))
+                {
+                    var total = fileDataList.Sum(x => x.Data.Length);
+                    if (total > SyncOptions.StreamBufferLength)
+                    {
+                        await Stream.SendObject(fileDataList);
+                        fileDataList.Clear();
+                    }
+
+                    fileDataList.Add(fileData);
+                }
+
+                if (fileDataList.Count > 0)
+                {
+                    await Stream.SendObject(fileDataList);
+                    fileDataList.Clear();
+                }
+                await Stream.SendObject(PacketType.ShareSync_Completed);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "error...");
+            }
         }
 
 
         void CheckConnection()
         {
-            if (!IsConnected)
+            if (!ClientConnected)
             {
                 throw new InvalidOperationException("Can't receive/send data because connection is closed");
             }
@@ -289,7 +372,7 @@ namespace GenesisLib.Sync
 
         public async Task Disconnect()
         {
-            if (!IsConnected)
+            if (!ClientConnected)
             {
                 return;
             }

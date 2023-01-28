@@ -12,7 +12,7 @@ namespace GenesisLib.Sync
         Disconnect,
 
         Upload_ShareList,
-        Download_ShareList,
+        GetShareList,
 
         FileData,
         FileDataList,

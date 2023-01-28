@@ -9,6 +9,11 @@ namespace GenesisLib.Sync
 {
     public class Share : IGuidItem
     {
+        public Share()
+        {
+
+        }
+
         public Share(string root)
         {
             this.ID = Guid.NewGuid();

@@ -20,6 +20,8 @@ namespace GenesisLib.Sync
 
             Stream = new TcpStream(Client);
             Connected?.Invoke();
+
+            _ = ReceivePacketsLoop();
         }
     }
 }

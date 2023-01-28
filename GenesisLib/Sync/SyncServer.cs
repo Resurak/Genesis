@@ -27,7 +27,7 @@ namespace GenesisLib.Sync
                 return;
             }
 
-            if (IsConnected)
+            if (ClientConnected)
             {
                 Log.Warning("A client is already connected");
                 return;

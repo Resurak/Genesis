@@ -9,6 +9,11 @@ namespace GenesisLib
 {
     public class GuidItemList<T> : List<T> where T : class, IGuidItem
     {
+        public GuidItemList()
+        {
+
+        }
+
         public T? this[Guid id] =>
             this.FirstOrDefault(x => x.ID == id);
     }

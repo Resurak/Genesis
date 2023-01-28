@@ -9,6 +9,11 @@ namespace GenesisLib
 {
     public class PathData : IPathable
     {
+        public PathData()
+        {
+
+        }
+
         public PathData(FileInfo info, string root)
         {
             Name = info.Name;

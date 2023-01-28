@@ -9,6 +9,11 @@ namespace GenesisLib
 {
     public class LogData
     {
+        public LogData()
+        {
+
+        }
+
         public LogData(LogEvent logEvent)
         {
             this.Timestamp = logEvent.Timestamp.DateTime;

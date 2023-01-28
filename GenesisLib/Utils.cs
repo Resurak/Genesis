@@ -7,6 +7,10 @@ using System.Threading.Tasks;
 
 namespace GenesisLib
 {
+    public delegate void UpdateEventHandler();
+    public delegate void ObjectEventHandler(object? obj);
+    public delegate void ExceptionEventHandler(Exception ex);
+
     public static class Utils
     {
         public static byte[] Serialize(this object? obj) =>

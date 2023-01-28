@@ -5,36 +5,36 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GenesisLib.Sync
+namespace GenesisLib
 {
     public class PathData : IPathable
     {
         public PathData(FileInfo info, string root)
         {
-            this.Name = info.Name;
-            this.Path = string.Join('\\', info.FullName.Split('\\').Except(root.Split('\\')));
+            Name = info.Name;
+            Path = string.Join('\\', info.FullName.Split('\\').Except(root.Split('\\')));
 
-            this.PathType = PathType.File;
+            PathType = PathType.File;
 
-            this.Size = info.Length;
-            this.Hash = new byte[0];
+            Size = info.Length;
+            Hash = new byte[0];
 
-            this.CreationTime = info.CreationTime;
-            this.LastWriteTime = info.LastWriteTime;
+            CreationTime = info.CreationTime;
+            LastWriteTime = info.LastWriteTime;
         }
 
         public PathData(DirectoryInfo info, string root)
         {
-            this.Name = info.Name;
-            this.Path = string.Join('\\', info.FullName.Split('\\').Except(root.Split('\\')));
+            Name = info.Name;
+            Path = string.Join('\\', info.FullName.Split('\\').Except(root.Split('\\')));
 
-            this.PathType = PathType.Directory;
+            PathType = PathType.Directory;
 
-            this.Size = 0;
-            this.Hash = new byte[0];
+            Size = 0;
+            Hash = new byte[0];
 
-            this.CreationTime = info.CreationTime;
-            this.LastWriteTime = info.LastWriteTime;
+            CreationTime = info.CreationTime;
+            LastWriteTime = info.LastWriteTime;
         }
 
         public string Name { get; set; }

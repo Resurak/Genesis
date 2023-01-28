@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GenesisLib.Sync
+namespace GenesisLib
 {
     public class PathItemList<T> : List<T> where T : class, IPathable
     {

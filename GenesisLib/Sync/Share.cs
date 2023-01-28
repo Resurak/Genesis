@@ -7,15 +7,19 @@ using System.Threading.Tasks;
 
 namespace GenesisLib.Sync
 {
-    public class Share
+    public class Share : IGuidItem
     {
         public Share(string root)
         {
+            this.ID = Guid.NewGuid();
+
             this.Root = root;
             this.PathList = new PathItemList<PathData>();
         }
 
+        public Guid ID { get; set; }
         public string Root { get; set; }
+
         public PathItemList<PathData> PathList { get; set; }
 
         public async Task Update()
@@ -50,22 +54,56 @@ namespace GenesisLib.Sync
             return list;
         }
 
-        public void CompareShare(Share source)
+        //public void CompareShare(Share source)
+        //{
+        //    foreach (var item in source.PathList)
+        //    {
+        //        var local = PathList[item.Path];
+        //        if (local == null)
+        //        {
+        //            item.SyncFlag = true;
+        //            PathList.Add(item);
+
+        //            continue;
+        //        }
+
+        //        if (local.LastWriteTime < item.LastWriteTime)
+        //        {
+        //            local.SyncFlag = true;
+        //            continue;
+        //        }
+
+        //        // todo: add more checking
+        //    }
+
+        //    foreach (var item in PathList)
+        //    {
+        //        var original = source.PathList[item.Path];
+        //        if (original == null)
+        //        {
+        //            item.DeleteFlag = true;
+        //        }
+        //    }
+        //}
+
+        public PathItemList<PathData> CompareShare(Share source)
         {
+            var pathList = new PathItemList<PathData>();
             foreach (var item in source.PathList)
             {
                 var local = PathList[item.Path];
                 if (local == null)
                 {
                     item.SyncFlag = true;
-                    PathList.Add(item);
+                    pathList.Add(item);
 
                     continue;
                 }
 
                 if (local.LastWriteTime < item.LastWriteTime)
                 {
-                    local.SyncFlag = true;
+                    item.SyncFlag = true;
+                    pathList.Add(item);
                     continue;
                 }
 
@@ -78,8 +116,11 @@ namespace GenesisLib.Sync
                 if (original == null)
                 {
                     item.DeleteFlag = true;
+                    pathList.Add(item);
                 }
             }
+
+            return pathList;
         }
     }
 }

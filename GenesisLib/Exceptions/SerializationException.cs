@@ -8,17 +8,17 @@ namespace GenesisLib.Exceptions
 {
     public class SerializationException : Exception
     {
-        public SerializationException() : base("Error while serializing\\deserializing data") 
+        public SerializationException() : base("ExceptionThrown while serializing\\deserializing data") 
         {
 
         }
 
-        public SerializationException(byte[]? data) : base("Error while deserializing data") 
+        public SerializationException(byte[]? data) : base("ExceptionThrown while deserializing data") 
         {
             Data = data;
         }
 
-        public SerializationException(object? obj = null) : base("Error while serializing object")
+        public SerializationException(object? obj = null) : base("ExceptionThrown while serializing object")
         {
             Object = obj;
         }

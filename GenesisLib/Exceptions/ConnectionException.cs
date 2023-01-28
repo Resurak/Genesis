@@ -8,7 +8,7 @@ namespace GenesisLib.Exceptions
 {
     public class ConnectionException : Exception
     {
-        public ConnectionException() : base("Error while trying to send/receive data") 
+        public ConnectionException() : base("ExceptionThrown while trying to send/receive data") 
         {
 
         }

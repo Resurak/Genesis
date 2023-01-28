@@ -12,5 +12,7 @@ namespace GenesisLib
     {
         public TcpServer(int port = 6969) : base(IPAddress.Any, port) { }
         public TcpServer(string ip, int port) : base(IPAddress.Parse(ip), port) { }
+
+        public new bool Active => base.Active;
     }
 }

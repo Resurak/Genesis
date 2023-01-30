@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace GenesisLib.Sync
 {
-    public enum PacketType
+    public enum SyncCommand
     {
         Handshake,
         Disconnect,

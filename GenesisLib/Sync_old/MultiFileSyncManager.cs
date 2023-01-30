@@ -10,11 +10,11 @@ namespace GenesisLib.Sync_old
     {
         public MultiFileSyncManager() 
         {
-            InboundFileSyncList = new GuidItemList<FileSync>();
+            InboundFileSyncList = new ItemList<FileSync>();
         }
 
-        public GuidItemList<FileSync> InboundFileSyncList { get; set; }
-        public GuidItemList<FileSync> OutboundFileSyncList { get; set; }
+        public ItemList<FileSync> InboundFileSyncList { get; set; }
+        public ItemList<FileSync> OutboundFileSyncList { get; set; }
 
         public async Task HandleInboundBlocks(params FileData[] blocks)
         {

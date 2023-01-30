@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 
 namespace GenesisLib
 {
-    public class GuidItemList<T> : List<T> where T : class, IGuidItem
+    public class ItemList<T> : List<T> where T : class, IGuidItem
     {
-        public GuidItemList()
+        public ItemList()
         {
 
         }

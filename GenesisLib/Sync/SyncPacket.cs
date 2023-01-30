@@ -13,13 +13,13 @@ namespace GenesisLib.Sync
 
         }
 
-        public SyncPacket(object? payload, PacketType command)
+        public SyncPacket(object? payload, SyncCommand command)
         {
             this.Payload = payload;
             this.Command = command;
         }
 
         public object? Payload { get; set; }
-        public PacketType Command { get; set; }
+        public SyncCommand Command { get; set; }
     }
 }

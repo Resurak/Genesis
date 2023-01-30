@@ -11,7 +11,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Genesis.Sync", "Genesis.Syn
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Genesis", "Genesis\Genesis.csproj", "{320B1B39-4A1C-42EA-9EFB-0ECFCA7232BC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenesisLib", "GenesisLib\GenesisLib.csproj", "{F6C11627-CB3A-49F6-AADE-F3B61E349840}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GenesisLib", "GenesisLib\GenesisLib.csproj", "{F6C11627-CB3A-49F6-AADE-F3B61E349840}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenesisLibrary", "GenesisLibrary\GenesisLibrary.csproj", "{80A9AC82-B4EF-4897-83E3-1A11CF6A92C1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -39,6 +41,10 @@ Global
 		{F6C11627-CB3A-49F6-AADE-F3B61E349840}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F6C11627-CB3A-49F6-AADE-F3B61E349840}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F6C11627-CB3A-49F6-AADE-F3B61E349840}.Release|Any CPU.Build.0 = Release|Any CPU
+		{80A9AC82-B4EF-4897-83E3-1A11CF6A92C1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{80A9AC82-B4EF-4897-83E3-1A11CF6A92C1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{80A9AC82-B4EF-4897-83E3-1A11CF6A92C1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{80A9AC82-B4EF-4897-83E3-1A11CF6A92C1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

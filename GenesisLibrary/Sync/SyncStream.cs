@@ -20,10 +20,22 @@ namespace GenesisLibrary.Sync
 
         public bool Completed => Position < Length;
 
-        public async Task<byte[]> GetData(int count)
+        public async Task<byte[]> GetData(int count = -1)
         {
             try
             {
+                if (count == -1)
+                {
+                    if (Length < 1024 * 32)
+                    {
+                        count = (int)Length;
+                    }
+                    else
+                    {
+                        count = Position + 1024 * 32 < Length ? 1024 * 32 : (int)(Length - Position);
+                    }
+                }
+
                 var buffer = new byte[count];
                 await ReadExactlyAsync(buffer);
 

@@ -9,18 +9,16 @@ namespace GenesisLibrary.Sync
 {
     public class SyncServer : SyncBase
     {
-        public SyncServer() 
+        public SyncServer() : base("serverShares.json")
         {
-            base.ShareFilePath = "serverShares.json";
+
         }
 
         TcpServer? Server;
 
-        public bool Active => Server != null && Server.Active;
-
         public void Start()
         {
-            if (Active)
+            if (Server?.Active ?? false)
             {
                 Log.Warning("Server already active");
                 return;
@@ -28,6 +26,26 @@ namespace GenesisLibrary.Sync
 
             Server = new TcpServer();
             Server.Start();
+
+            Log.Information("Server started");
+        }
+
+        public void Stop()
+        {
+            if (ClientConnected)
+            {
+                Disconnect();
+            }
+
+            if (Server == null || !Server.Active)
+            {
+                return;
+            }
+
+            base.Dispose();
+            Server?.Stop();
+
+            Log.Information("Server stopped");
         }
 
         public async Task WaitClient()
@@ -38,7 +56,7 @@ namespace GenesisLibrary.Sync
                 return;
             }
 
-            if (!Active)
+            if (!Server?.Active ?? false)
             {
                 Log.Warning("Server not active, can't wait client");
                 return;
@@ -48,6 +66,7 @@ namespace GenesisLibrary.Sync
             Stream = new TcpStream(Client);
 
             Log.Information("Client connected");
+            OnConnected();
         }
     }
 }

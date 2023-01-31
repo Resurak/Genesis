@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace GenesisLibrary.Sync
 {
-    public class FileData : ISyncElement
+    public class FileData
     {
         public FileData()
         {
@@ -16,13 +16,13 @@ namespace GenesisLibrary.Sync
         public FileData(PathData pathData, byte[] data)
         {
             this.ID = pathData.ID;
-            this.Path = pathData.Path;
-
             this.Data = data;
+
+            this.Single = pathData.Size < 1024 * 32;
         }
 
         public Guid ID { get; set; }
-        public string Path { get; set; }
+        public bool Single { get; set; }
 
         public byte[] Data { get; set; }
     }

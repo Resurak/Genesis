@@ -1,4 +1,5 @@
-﻿using MessagePack;
+﻿using GenesisLibrary.Sync;
+using MessagePack;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -8,7 +9,8 @@ using System.Threading.Tasks;
 
 namespace GenesisLibrary
 {
-    public delegate void ReceivedObjectEventHandler(object? obj);
+    public delegate void StatusUpdateEventHandler();
+    public delegate void SyncProgressEventHandler(SyncProgress progress);
 
     public static class Utils
     {
@@ -23,6 +25,9 @@ namespace GenesisLibrary
 
         public static object? FromJson(this string json) =>
             JsonConvert.DeserializeObject(json);
+
+        public static T? FromJson<T>(this string json) where T : class =>
+            JsonConvert.DeserializeObject<T>(json);
 
         public static bool Empty(this string? str) =>
             str == null || str.Length == 0;

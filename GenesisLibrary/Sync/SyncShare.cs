@@ -1,4 +1,5 @@
-﻿using Serilog;
+﻿using MessagePack;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,12 +21,15 @@ namespace GenesisLibrary.Sync
             this.Name = "PlaceHolder";
             this.Options = options != null ? options : new SyncShareOptions();
 
-            this.PathList = new SyncItemList<PathData>();
+            this.SyncPathList = new SyncItemList<PathData>();
+            this.DeletePathList= new SyncItemList<PathData>();
+
+            this.LocalPathList = new SyncItemList<PathData>();
             this.InternalTimer = new Timer(TimerCallback, null, -1, -1);
 
             if (Options.AutoUpdate)
             {
-                this.InternalTimer.Change(Options.UpdateInterval, Options.UpdateInterval);
+                this.InternalTimer.Change(1000, Options.UpdateInterval);
             }
         }
 
@@ -35,13 +39,20 @@ namespace GenesisLibrary.Sync
         public string Name { get; set; }
         public DateTime LastUpdate { get; set; }
 
-        public SyncShare? RemoteShare { get; set; }
         public SyncShareOptions Options { get; set; }
-        public SyncItemList<PathData> PathList { get; set; }
 
+        public SyncItemList<PathData> LocalPathList { get; set; }
+
+        public SyncItemList<PathData> SyncPathList { get; set; }
+        public SyncItemList<PathData> DeletePathList { get; set; }
+
+        [IgnoreMember]
         private bool syncing;
+
+        [IgnoreMember]
         private bool updating;
 
+        [IgnoreMember]
         private Timer InternalTimer;
 
         public async Task Update()
@@ -54,7 +65,7 @@ namespace GenesisLibrary.Sync
             updating = true;
 
             var info = new DirectoryInfo(Path);
-            PathList = await GetPathData(info);
+            LocalPathList = await GetPathData(info);
 
             updating = false;
             LastUpdate = DateTime.Now;
@@ -69,7 +80,7 @@ namespace GenesisLibrary.Sync
             foreach (var file in info.EnumerateFiles())
             {
                 var fileData = new PathData(Path, file);
-                PathList.Add(rootData);
+                LocalPathList.Add(rootData);
             }
 
             var taskList = new List<Task<SyncItemList<PathData>>>();
@@ -92,42 +103,37 @@ namespace GenesisLibrary.Sync
 
         async void TimerCallback(object? state = null)
         {
-            Log.Debug("Updating share");
+            Log.Debug("Updating share {id}", ID);
             await Update();
         }
 
-        public void CompareShare(SyncShare source)
+        public SyncShareData CompareShare(SyncShare source)
         {
             Log.Verbose("Comparing local share with share {id}", source.ID);
-            var share = new SyncShare();
-
-            share.ID = source.ID;
-            share.Path = this.Path;
-            share.PathList = new SyncItemList<PathData>();
-
-            foreach (var pathData in source.PathList)
+            foreach (var pathData in source.LocalPathList)
             {
-                var local = PathList[pathData.Path];
+                var local = LocalPathList[pathData.Path];
                 if (local == null)
                 {
-                    share.PathList.Add(pathData);
+                    SyncPathList.Add(pathData);
                     continue;
                 }
 
                 if (local.LastWriteTime < pathData.LastWriteTime)
                 {
-                    share.PathList.Add(pathData);
+                    SyncPathList.Add(pathData);
                     continue;
                 }
 
                 if (local.Size != pathData.Size)
                 {
-                    share.PathList.Add(pathData);
+                    SyncPathList.Add(pathData);
                     continue;
                 }
             }
 
-            RemoteShare = share;
+            var shareData = new SyncShareData(source.ID, SyncPathList.Select(x => x.ID).ToList());
+            return shareData;
         }
 
         public void Dispose()

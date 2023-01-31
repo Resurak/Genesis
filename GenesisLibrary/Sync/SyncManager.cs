@@ -1,151 +1,122 @@
-﻿using Serilog;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace GenesisLibrary.Sync
 {
     public class SyncManager
     {
-        static SyncItemList<SyncStream> Streams = new SyncItemList<SyncStream>();
+        public SyncManager() { }
 
-        public static void CheckFolders(SyncShare share, SyncShare local)
+        public SyncManager(SyncShare local)
         {
-            foreach (var folder in share.PathList.Where(x => x.Type == PathType.Folder))
-            {
-                var path = folder.Path.GetAbsolutePath(share.Path);
-                if (!Directory.Exists(path))
-                {
-                    Directory.CreateDirectory(path);
-                }
-            }
-
-            foreach (var folder in local.PathList.Where(x => x.Type == PathType.Folder))
-            {
-                var path = folder.Path.GetAbsolutePath(share.Path);
-                var source = share.PathList[folder.ID];
-
-                if (source == null)
-                {
-                    if (Directory.Exists(path))
-                    {
-                        Directory.Delete(path, true);
-                    }
-                }
-            }
+            this.Local = local;
+            this.Progress = new SyncProgress(local.SyncPathList.Sum(x => x.Size));
+            //this.FilesToSync = files;
         }
 
-        public static void CheckFiles(SyncShare share, SyncShare local)
-        {
-            foreach (var file in local.PathList.Where(x => x.Type == PathType.File))
-            {
-                var path = file.Path.GetAbsolutePath(share.Path);
-                var source = share.PathList[file.ID];
+        public SyncShare Local { get; set; }
+        public SyncProgress Progress { get; set; }
 
-                if (source == null)
-                {
-                    if (File.Exists(path))
-                    {
-                        File.Delete(path);
-                    }
-                }
+        private SyncStream? tempFileStream;
+
+        public async Task ProcessFileData(FileData fileData, IProgress<SyncProgress>? progress = null)
+        {
+            var data = Local.SyncPathList[fileData.ID];
+            if (data == null)
+            {
+                throw new InvalidOperationException("File not found with id " + fileData.ID);
             }
-        }
 
-        public async static Task SendFiles(SyncShareData share, TcpStream stream)
-        {
-            var size = 0L;
-            var fileDataList = new List<FileData>();
-
-            foreach (var file in share.PathList)
+            if (!fileData.Single)
             {
-                if (size > 1024 * 512)
+                if (tempFileStream == null)
                 {
-                    foreach (var fileData in fileDataList)
-                    {
-                        await stream.SendObject(fileData);
-                    }
-
-                    size = 0L;
-                    fileDataList.Clear();
-                }
-
-                if (file.Type == PathType.Folder)
-                {
-                    continue;
-                }
-
-                var path = file.Path.GetAbsolutePath(share.Path);
-                using var fileStream = new SyncStream(share.Path, file, FileMode.Open);
-
-                if (file.Size < 1024 * 512)
-                {
-                    var data = await fileStream.GetData((int)file.Size);
-
-                    var fileData = new FileData(file, data);
-                    fileDataList.Add(fileData);
-
-                    size += file.Size;
+                    tempFileStream = new SyncStream(Local.Path, data, FileMode.Create);
+                    await tempFileStream.WriteData(fileData.Data);
                 }
                 else
                 {
-                    while (!fileStream.Completed)
-                    {
-                        var diff = fileStream.Length - fileStream.Position < 1024 * 512 ? 1024 * 512 : fileStream.Length - fileStream.Position;
-                        var data = await fileStream.GetData((int)diff);
+                    await tempFileStream.WriteData(fileData.Data);
+                }
 
-                        var fileData = new FileData(file, data);
+                if (tempFileStream.Completed)
+                {
+                    tempFileStream.Dispose();
+                    tempFileStream = null;
+
+                    Progress.Update(0, data);
+                }
+            }
+            else
+            {
+                using var stream = new SyncStream(Local.Path, data, FileMode.Create);
+                await stream.WriteData(fileData.Data);
+
+                Progress.Update(0, data);
+            }
+
+            Progress.Update(fileData.Data.Length);
+            progress?.Report(Progress);
+        }
+
+        public async Task ProcessFileData(List<FileData> fileDataList, IProgress<SyncProgress>? progress = null)
+        {
+            foreach (var file in fileDataList)
+            {
+                await ProcessFileData(file, progress);
+            }
+        }
+
+        public async Task SendFileData(TcpStream stream)
+        {
+            var list = new List<FileData>();
+            foreach (var pathData in Local.SyncPathList)
+            {
+                if (list.Sum(x => x.Data.Length) > 1024 * 512)
+                {
+                    await stream.SendObject(list);
+                    list.Clear();
+                }
+
+                using var syncStream = new SyncStream(Local.Path, pathData, FileMode.Open);
+
+                if (pathData.Size < 1024 * 32)
+                {
+                    var data = await syncStream.GetData();
+
+                    var fileData = new FileData(pathData, data);
+                    list.Add(fileData);
+                }
+                else
+                {
+                    while (!syncStream.Completed)
+                    {
+                        var data = await syncStream.GetData();
+                        var fileData = new FileData(pathData, data);
+
                         await stream.SendObject(fileData);
                     }
                 }
             }
+        }
 
-            if (fileDataList.Count > 0)
+        public static SyncItemList<PathData> GetFilesToSync(SyncShare share, List<Guid> idList)
+        {
+            var list = new SyncItemList<PathData>();
+            foreach (var item in idList)
             {
-                foreach (var fileData in fileDataList)
+                var pathData = share.LocalPathList[item];
+                if (pathData != null)
                 {
-                    await stream.SendObject(fileData);
+                    list.Add(pathData);
                 }
-
-                fileDataList.Clear();
-            }
-        }
-
-        public async static Task ProcessFileData(SyncShare share, FileData data)
-        {
-            if (data.Data.Length == 0)
-            {
-                Log.Warning("Received data with 0 length. ID: {id} || Path: {path}", data.ID, data.Path);
-                return;
-            }  
-
-            var local = share.PathList[data.ID];
-            if (local == null)
-            {
-                Log.Warning("No path data found with id {id}", data.ID); 
-                return;
             }
 
-            var stream = Streams[local.ID];
-            if (stream == null)
-            {
-                stream = new SyncStream(share.Path, local, FileMode.Create);
-                await stream.WriteData(data.Data);
-
-                Streams.Add(stream);
-            }
-        }
-
-        public static void Dispose()
-        {
-            foreach (var stream in Streams)
-            {
-                stream.Dispose();
-            }
-
-            Streams.Clear();
+            return list;
         }
     }
 }

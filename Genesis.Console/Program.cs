@@ -13,7 +13,11 @@ if (args.Length > 0)
 {
     if (args[0] == "client")
     {
+        SyncProgress? progress = null;
+        var timer = new Timer(TimerCallback, null, 0, 1000);
+
         var client = new SyncClient();
+        client.SyncProgress += UpdateProgress;
 
         while (true)
         {
@@ -27,6 +31,12 @@ if (args.Length > 0)
             if (selection.StartsWith("add "))
             {
                 var path = selection.Substring("add ".Length);
+                path = path.Replace("\"", "");
+                //if (!path.Contains(" "))
+                //{
+
+                //}
+
                 if (!Directory.Exists(path))
                 {
                     Log.Warning("Can't add share of {path}", path); 
@@ -34,6 +44,12 @@ if (args.Length > 0)
                 }
 
                 await client.AddShare(path);
+                continue;
+            }
+
+            if (selection == "getList")
+            {
+                await client.RequestShareList();
                 continue;
             }
 
@@ -85,216 +101,117 @@ if (args.Length > 0)
                 }
 
                 await client.RequestSync(client.LocalShareList[num1], client.RemoteShareList[num2]);
+                continue;
             }
+
+            Log.Warning("Unknown command");
         }
 
-        //Log.Information("Starting client");
+        void UpdateProgress(SyncProgress? syncProgress)
+        {
+            progress = syncProgress;
+        }
 
-        //var client = new SyncClient();
-        //await client.LoadClientShares();
+        void TimerCallback(object? state = null)
+        {
+            if (progress == null)
+            {
+                return;
+            }
 
-        //while (true)
-        //{
-        //    var command = Console.ReadLine();
-        //    if (command?.StartsWith("connect ") ?? false)
-        //    {
-        //        var split = command.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        //        if (split.Length == 2)
-        //        {
-        //            await client.Connect(split[1]);
-        //            Log.Information("Connected to server");
-        //        }
-        //        else
-        //        {
-        //            Log.Warning("Invalid connect command");
-        //        }
-
-        //        continue;
-        //    }
-
-        //    if (command?.Equals("getList") ?? false)
-        //    {
-        //        await client.GetShareList();
-        //    }
-
-        //    if (command?.Equals("list") ?? false)
-        //    {
-        //        if (!client.ClientConnected)
-        //        {
-        //            Log.Warning("Not connected, skipping");
-        //            continue;
-        //        }
-
-        //        Log.Information("LocalShares:");
-        //        for (int i = 0; i < client.LocalShares.Count; i++)
-        //        {
-        //            Log.Information("\t[{i}]: {root}", i, client.LocalShares[i].Root);
-        //        }
-
-        //        Log.Information("RemoteShares:");
-        //        for (int i = 0; i < client.RemoteShares.Count; i++)
-        //        {
-        //            Log.Information("\t[{i}]: {root}", i, client.RemoteShares[i].Root);
-        //        }
-
-        //        continue;
-        //    }
-
-        //    if (command?.StartsWith("sync ") ?? false)
-        //    {
-        //        if (!client.ClientConnected)
-        //        {
-        //            Log.Warning("Not connected, skipping");
-        //            continue;
-        //        }
-
-        //        var split = command.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        //        if (split.Length == 3)
-        //        {
-        //            Share? local = null;
-        //            Share? source = null;
-
-        //            var localNum = -1;
-        //            var remoteNum = -1;
-
-        //            if (int.TryParse(split[1], out localNum) && localNum >= 0 && localNum < client.LocalShares.Count)
-        //            {
-        //                local = client.LocalShares[localNum];
-        //            }
-        //            else
-        //            {
-        //                Log.Warning("Invalid local share number, skipping");
-        //                continue;
-        //            }
-
-        //            if (int.TryParse(split[2], out remoteNum) && remoteNum >= 0 && remoteNum < client.RemoteShares.Count)
-        //            {
-        //                source = client.RemoteShares[remoteNum];
-        //            }
-        //            else
-        //            {
-        //                Log.Warning("Invalid remote share number, skipping");
-        //                continue;
-        //            }
-
-        //            await client.ShareSync(local, source);
-        //            continue;
-        //        }
-        //    }
-
-        //    if (command?.StartsWith("add ") ?? false)
-        //    {
-        //        var folder = command.Substring("add ".Length).Replace("\"", "");
-        //        if (Directory.Exists(folder))
-        //        {
-        //            Log.Information("test");
-        //            await client.AddShare(folder);
-        //        }
-        //        else
-        //        {
-        //            Log.Warning("Can't add {root} to local share because folder doesn't exist", folder);
-        //        }
-
-        //        continue;
-        //    }
-
-        //    if (command?.Equals("disconnect") ?? false)
-        //    {
-        //        if (!client.ClientConnected)
-        //        {
-        //            Log.Warning("Not connected, skipping");
-        //        }
-        //        else
-        //        {
-        //            Log.Warning("Disconnecting client");
-        //            await client.Disconnect();
-        //        }
-
-        //        continue;
-        //    }
-
-        //    Log.Warning("Invalid command");
-        //}
+            Log.Information("Sync progress: {num}%", progress.Percent);
+            if (progress.Percent == 100)
+            {
+                progress = null;
+            }
+        }
     }
 
     if (args[0] == "server")
     {
+        var server = new SyncServer();
+        server.Start();
 
-        //Log.Information("Starting server");
+        while (true)
+        {
+            var selection = Console.ReadLine();
+            if (selection == "connect")
+            {
+                Log.Information("Waiting new client");
+                await server.WaitClient();
+            }
 
-        //var server = new SyncServer();
-        //server.Start();
+            if (selection == "getList")
+            {
+                await server.RequestShareList();
+                continue;
+            }
 
-        //await server.LoadServerShares();
-        //while (server.Active)
-        //{
-        //    var command = Console.ReadLine();
-        //    if (command?.Equals("accept") ?? false)
-        //    {
-        //        await server.WaitClient();
-        //        Log.Information("Client connected");
+            if (selection.StartsWith("add "))
+            {
+                var path = selection.Substring("add ".Length);
+                path = path.Replace("\"", "");
 
-        //        while (server.ClientConnected)
-        //        {
-        //            await server.ReceiveRequest();
-        //        }
+                if (!Directory.Exists(path))
+                {
+                    Log.Warning("Can't add share of {path}", path);
+                    continue;
+                }
 
-        //        continue;
-        //    }
+                await server.AddShare(path);
+                continue;
+            }
 
-        //    if (command?.Equals("getList") ?? false)
-        //    {
-        //        //await server.GetShareList();
-        //        continue;
-        //    }
+            if (selection == "list")
+            {
+                if (server.LocalShareList.Count > 0)
+                {
+                    Log.Information("{x}", nameof(server.LocalShareList));
+                    for (int i = 0; i < server.LocalShareList.Count; i++)
+                    {
+                        Log.Information("[{i}]: {path}", i, server.LocalShareList[i].Path);
+                    }
+                }
 
-        //    if (command?.Equals("list") ?? false)
-        //    {
-        //        if (!server.ClientConnected)
-        //        {
-        //            Log.Warning("Not connected, skipping");
-        //            continue;
-        //        }
+                if (server.LocalShareList.Count > 0)
+                {
+                    Log.Information("{x}", nameof(server.RemoteShareList));
+                    for (int i = 0; i < server.RemoteShareList.Count; i++)
+                    {
+                        Log.Information("[{i}]: {path}", i, server.RemoteShareList[i].Path);
+                    }
+                }
 
-        //        Log.Information("LocalShares:");
-        //        for (int i = 0; i < server.LocalShares.Count; i++)
-        //        {
-        //            Log.Information("\t[{i}]: {root}", i, server.LocalShares[i].Root);
-        //        }
+                continue;
+            }
 
-        //        Log.Information("RemoteShares:");
-        //        for (int i = 0; i < server.RemoteShares.Count; i++)
-        //        {
-        //            Log.Information("\t[{i}]: {root}", i, server.RemoteShares[i].Root);
-        //        }
+            if (selection.StartsWith("sync "))
+            {
+                var split = selection.Split(" ", StringSplitOptions.RemoveEmptyEntries);
+                var num1 = 0;
+                var num2 = 0;
 
-        //        continue;
-        //    }
+                if (split.Length != 3)
+                {
+                    Log.Warning("Invalid command");
+                    continue;
+                }
 
-        //    if (command?.StartsWith("add ") ?? false)
-        //    {
-        //        var folder = command.Substring("add ".Length).Replace("\"", "");
-        //        if (Directory.Exists(folder))
-        //        {
-        //            Log.Information("test");
-        //            await server.AddShare(folder, false);
-        //        }
-        //        else
-        //        {
-        //            Log.Warning("Can't add {root} to local share because folder doesn't exist", folder);
-        //        }
-        //    }
+                if (!int.TryParse(split[1], out num1) || num1 < 0 && num1 >= server.LocalShareList.Count)
+                {
+                    Log.Warning("Wrong local share number entered");
+                    continue;
+                }
 
-        //    if (command?.Equals("disconnect") ?? false)
-        //    {
-        //        Log.Warning("Disconnecting client");
-        //        await server.Disconnect();
+                if (!int.TryParse(split[2], out num2) || num2 < 0 && num2 >= server.RemoteShareList.Count)
+                {
+                    Log.Warning("Wrong local share number entered");
+                    continue;
+                }
 
-        //        continue;
-        //    }
-
-        //    Log.Warning("Invalid command");
-        //}
+                await server.RequestSync(server.LocalShareList[num1], server.RemoteShareList[num2]);
+            }
+        }
     }
 }
 else

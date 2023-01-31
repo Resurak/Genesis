@@ -6,24 +6,20 @@ using System.Threading.Tasks;
 
 namespace GenesisLibrary.Sync
 {
-    public class SyncShareData : ISyncElement
+    public class SyncShareData
     {
         public SyncShareData() 
         {
 
         }
 
-        public SyncShareData(SyncShare share)
+        public SyncShareData(Guid shareID, List<Guid> fileIDList)
         {
-            this.ID = share.ID;
-            this.Path = share.Path;
-
-            this.PathList = share.PathList;
+            this.ID = shareID;
+            this.IDList = fileIDList;
         }
 
         public Guid ID { get; set; }
-        public string Path { get; set; }
-
-        public SyncItemList<PathData> PathList { get; set; }
+        public List<Guid> IDList { get; set; }
     }
 }

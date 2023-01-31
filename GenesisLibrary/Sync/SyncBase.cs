@@ -3,6 +3,7 @@ using Serilog;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
@@ -12,53 +13,54 @@ namespace GenesisLibrary.Sync
 {
     public class SyncBase : IDisposable
     {
-        public SyncBase() 
+        public SyncBase(string filePath = "localShares.json")
         {
+            ShareFilePath = filePath;
+
             LocalShareList = new SyncItemList<SyncShare>();
             RemoteShareList = new SyncItemList<SyncShare>();
 
             Load();
 
-            NetWorker.DoWork += this.NetWorker_DoWork;
-            //NetWorker.RunWorkerAsync()
+            WorkingThread = new Thread(async () => await WaitData());
         }
-
-        private void NetWorker_DoWork(object? sender, DoWorkEventArgs e)
-        {
-            throw new NotImplementedException();
-        }
-
-        BackgroundWorker NetWorker;
 
         protected TcpClient? Client;
         protected TcpStream? Stream;
-        protected SyncShare? ShareToSync;
 
-        public event ReceivedObjectEventHandler? ReceivedObject;
+        protected Thread WorkingThread;
+        protected SyncManager? SyncManager;
+
+        public StatusUpdateEventHandler? Connected;
+        public StatusUpdateEventHandler? Disconnected;
+        public SyncProgressEventHandler? SyncProgress;
 
         public bool ClientConnected => Client != null && Stream != null;
 
         public SyncItemList<SyncShare> LocalShareList { get; set; }
         public SyncItemList<SyncShare> RemoteShareList { get; set; }
 
-        public string ShareFilePath { get; set; } = "localShares.json";
+        public string ShareFilePath { get; set; } = string.Empty;
 
         public void Load()
         {
-            Log.Verbose("Loading {x} from {path}", nameof(LocalShareList), ShareFilePath);
+            Log.Information("Loading {x} from {path}", nameof(LocalShareList), ShareFilePath);
 
             try
             {
-                var json = File.ReadAllText(ShareFilePath);
-                var obj = json.FromJson();
+                //var data = File.ReadAllBytes(ShareFilePath);
+                //var obj = data.FromPack();
 
-                if (obj is SyncItemList<SyncShare> list)
+                var json = File.ReadAllText(ShareFilePath);
+                var obj = json.FromJson<SyncItemList<SyncShare>>();
+
+                if (obj != null)
                 {
-                    LocalShareList = list;
+                    LocalShareList = obj;
                 }
                 else
                 {
-                    throw new Exception("Invalid json in file " + ShareFilePath);
+                    throw new Exception("Invalid json in file " + ShareFilePath + "\ntype: " + obj.GetType());
                 }
             }
             catch (Exception ex)
@@ -69,17 +71,19 @@ namespace GenesisLibrary.Sync
 
         public void Save()
         {
-            Log.Verbose("Saving {x} to {path}", nameof(LocalShareList), ShareFilePath);
+            Log.Information("Saving {x} to {path}", nameof(LocalShareList), ShareFilePath);
 
             try
             {
+                //var data = LocalShareList.ToPack();
                 var json = LocalShareList.ToJson();
                 if (File.Exists(ShareFilePath))
                 {
                     File.Delete(ShareFilePath);
                 }
 
-                File.WriteAllText(json, ShareFilePath);
+                //File.WriteAllBytes(ShareFilePath, data);
+                File.WriteAllText(ShareFilePath, json);
             }
             catch (Exception ex)
             {
@@ -121,95 +125,117 @@ namespace GenesisLibrary.Sync
             CheckConnection();
             Log.Verbose("Sending share to sync");
 
-            local.CompareShare(source);
-            ShareToSync = local;
+            var data = local.CompareShare(source);
 
-            var data = new SyncShareData(local.RemoteShare);
+            SyncManager = new SyncManager(local);
             await Stream.SendObject(data);
         }
 
-        public async Task WaitData(bool recursive = true)
+        async Task WaitData()
         {
-            try
+            while (ClientConnected)
             {
-                CheckConnection();
+                try
+                {
+                    CheckConnection();
 
-                var obj = await Stream.ReceiveObject();
-                if (obj == null)
-                {
-                    Log.Warning("Received invalid object");
-                }
-                else
-                {
-                    await ProcessRequest(obj);
-                }
+                    var obj = await Stream.ReceiveObject();
+                    if (obj is SyncItemList<SyncShare> syncShareList)
+                    {
+                        Log.Information("Received remote share list");
 
-                if (recursive)
+                        RemoteShareList = syncShareList;
+                        await Stream.SendObject(LocalShareList);
+
+                        continue;
+                    }
+
+                    if (obj is SyncShareData syncShareData)
+                    {
+                        Log.Information("Received sync share data");
+
+                        var local = LocalShareList[syncShareData.ID];
+                        if (local == null)
+                        {
+                            Log.Warning("No local sync share with id {id}", syncShareData.ID);
+                            continue;
+                        }
+
+                        local.SyncPathList = SyncManager.GetFilesToSync(local, syncShareData.IDList);
+                        Log.Information("Sending files");
+
+                        SyncManager = new SyncManager(local);
+                        await SyncManager.SendFileData(Stream);
+
+                        Log.Information("All requested files sent");
+
+                        SyncManager = null;
+                        continue;
+                    }
+
+                    if (obj is List<FileData> fileDataList)
+                    {
+                        if (SyncManager == null)
+                        {
+                            Log.Warning("Received fileDataList, but no share to sync, skipping");
+                            continue;
+                        }
+
+                        await SyncManager.ProcessFileData(fileDataList, new Progress<SyncProgress>(x => SyncProgress?.Invoke(x)));
+                        continue;
+                    }
+
+                    if (obj is FileData fileData)
+                    {
+                        if (SyncManager == null)
+                        {
+                            Log.Warning("Received fileData, but no share to sync, skipping");
+                            continue;
+                        }
+
+                        await SyncManager.ProcessFileData(fileData, new Progress<SyncProgress>(x => SyncProgress?.Invoke(x)));
+                        continue;
+                    }
+
+                    Log.Warning("Unknown object received, skipping");
+                }
+                catch (Exception ex)
                 {
-                    await WaitData(recursive);
+                    Log.Warning(ex, "Exception thrown while waiting data");
                 }
             }
-            catch (Exception ex)
-            {
-                Log.Warning(ex, "Exception thrown while accepting request");
-            }
-        }
-
-        protected async Task ProcessRequest(object obj)
-        {
-            if (obj is SyncItemList<SyncShare> syncShareList)
-            {
-                Log.Information("Received {x}", nameof(RemoteShareList));
-                RemoteShareList = syncShareList;
-
-                return;
-            }
-
-            if (obj is SyncShareData shareData)
-            {
-                Log.Information("Received sync share request. Requested share:\nID: {id} || Path: {path}", shareData.ID, shareData.Path);
-                await SyncManager.SendFiles(shareData, Stream);
-
-                return;
-            }
-
-            if (obj is List<FileData> fileDataList)
-            {
-                if (ShareToSync == null)
-                {
-                    Log.Warning("No share to sync, disposing received file data");
-                    return;
-                }
-
-                foreach (var data in fileDataList)
-                {
-                    await SyncManager.ProcessFileData(ShareToSync, data);
-                }
-
-                return;
-            }
-
-            if (obj is FileData fileData)
-            {
-                if (ShareToSync == null)
-                {
-                    Log.Warning("No share to sync, disposing received file data");
-                    return;
-                }
-
-                await SyncManager.ProcessFileData(ShareToSync, fileData);
-                return;
-            }
-
-            Log.Warning("Unknown object received, skipping");
         }
 
         protected void CheckConnection()
         {
             if (!ClientConnected)
             {
-                throw new ConnectionException(ConnectionExceptionCode.NotConnected);
+                Log.Warning("Can't execute action. Client not connected");
+                Disconnect();
+                //throw new ConnectionException(ConnectionExceptionCode.NotConnected);
             }
+        }
+
+        protected void OnConnected()
+        {
+            WorkingThread.Start();
+            Connected?.Invoke();
+        }
+
+        protected void OnDisconnected()
+        {
+            if (WorkingThread.ThreadState == ThreadState.Running)
+            {
+                WorkingThread.Join();
+            }
+
+            Disconnected?.Invoke();
+        }
+
+        public void Disconnect()
+        {
+            Dispose();
+            OnDisconnected();
         }
 
         public void Dispose()
